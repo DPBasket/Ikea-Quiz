@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0058A3">
+<title>IKEA QUIZ · Giocatore</title>
+<link rel="stylesheet" href="quiz-player.css">
+<style>
+  :root { --blue:#0058A3; --yellow:#FFDB00; --ink:#111; --floor:#F5F5F5; --grey:#767676; --red:#E4002B; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:var(--floor); color:var(--ink); overflow:hidden; overscroll-behavior:none;
+    font-family:"Noto Sans", Verdana, "Helvetica Neue", Arial, sans-serif; -webkit-user-select:none; user-select:none; touch-action:none;
+    -webkit-touch-callout:none; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  #zoomfix { position:fixed; left:50%; top:8px; transform:translateX(-50%); z-index:60; display:none; background:var(--red); color:#fff; font-weight:900; padding:10px 14px; font-size:14px; }
+  #zoomfix.on { display:block; }
+  button, input { font:inherit; }
+  button { border:0; cursor:pointer; }
+  .screen { position:fixed; inset:0; display:none; }
+  .screen.on { display:flex; }
+  .brand { font-weight:900; font-size:30px; line-height:1; }
+  .brand b { background:var(--blue); color:var(--yellow); padding:2px 8px; }
+  .btn { background:var(--blue); color:#fff; font-weight:900; letter-spacing:.06em; text-transform:uppercase; padding:14px 18px; font-size:17px; }
+  .btn.y { background:var(--yellow); color:var(--blue); }
+  .btn.ghost { background:#fff; color:var(--ink); border:2px solid var(--ink); font-size:13px; padding:10px 12px; }
+  .btn.sel { background:var(--yellow); color:var(--blue); border-color:var(--blue); }
+  label { font-size:12px; font-weight:900; letter-spacing:.1em; color:var(--grey); }
+  input { width:100%; padding:12px; border:2px solid var(--ink); font-size:20px; font-weight:800; text-transform:uppercase; background:#fff; touch-action:manipulation; }
+
+  #join, #wait, #done { flex-direction:column; gap:14px; padding:max(18px, env(safe-area-inset-top)) 20px 20px; overflow:auto; touch-action:pan-y; max-width:600px; margin:0 auto; }
+  #colors { display:grid; grid-template-columns:repeat(10, 1fr); gap:6px; }
+  .sw { aspect-ratio:1; border:3px solid rgba(0,0,0,.12); }
+  .sw.sel { border-color:var(--ink); box-shadow:inset 0 0 0 3px #fff; }
+  .sw:disabled { opacity:.12; }
+  #err { color:var(--red); font-weight:800; min-height:1.2em; }
+  .card { background:#fff; border:2px solid var(--ink); padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #tiltbox { display:none; flex-direction:column; gap:8px; }
+  #tiltbox.on { display:flex; }
+  #tiltbar { position:relative; height:26px; background:#E0E0E0; }
+  #tiltbar i { position:absolute; top:0; bottom:0; width:16px; margin-left:-8px; left:50%; background:var(--blue); }
+  #tiltbar::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; background:var(--ink); }
+  .big { font-size:46px; font-weight:900; color:var(--blue); line-height:1; }
+  .muted { color:var(--grey); font-weight:700; font-size:14px; }
+
+  /* race */
+  #race { background:#E9E6DF; }
+  #cv3, #hud { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #hud { pointer-events:none; }
+  #steer { position:absolute; left:calc(10px + env(safe-area-inset-left)); bottom:10px; width:min(32vw, 270px); height:min(21vh, 84px);
+    display:flex; border:3px solid rgba(17,17,17,.75); background:rgba(255,255,255,.3); border-radius:18px; overflow:hidden; touch-action:none; }
+  #steer span { flex:1; display:flex; align-items:center; justify-content:center; font-size:min(9vh,36px); color:var(--blue); font-weight:900; }
+  #steer span + span { border-left:3px solid rgba(0,0,0,.25); }
+  #steer span.on { background:var(--yellow); }
+  body.tilt #steer { display:none; }
+  #gas { position:absolute; right:calc(10px + env(safe-area-inset-right)); bottom:10px; width:min(28vh,20vw); height:min(28vh,20vw); border-radius:50%;
+    background:rgba(255,219,0,.75); border:3px solid rgba(17,17,17,.75); color:var(--blue); font-weight:900; font-size:min(5vh,20px); touch-action:none; }
+  #gas.on { background:#FFE94D; transform:scale(.95); }
+  #pu { position:absolute; right:calc(min(28vh,20vw) + 20px + env(safe-area-inset-right)); bottom:10px; width:min(19vh,14vw); height:min(19vh,14vw); border-radius:50%;
+    background:rgba(189,189,189,.5); border:3px solid rgba(158,158,158,.8); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:900; font-size:min(2.2vh,9px); letter-spacing:.03em; opacity:.6; touch-action:none; }
+  #pu.ready { background:var(--blue); border-color:var(--ink); opacity:1; animation:pulse .8s infinite alternate; }
+  #pu canvas { width:60%; height:60%; }
+  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(255,219,0,.9); } to { box-shadow:0 0 0 12px rgba(255,219,0,0); } }
+  /* phone held upright: same controls, sized for the narrow screen */
+  @media (orientation:portrait) {
+    #steer { width:46vw; height:13vh; }
+    #gas { width:27vw; height:27vw; }
+    #pu { width:19vw; height:19vw; right:calc(27vw + 18px); bottom:calc(10px + 4vw); }
+  }
+  #catch { position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); width:min(44vh,34vw); height:min(44vh,34vw); border-radius:50%;
+    background:#FFF3E0; color:var(--red); font-weight:900; font-size:min(7vh,32px); border:4px solid var(--red); display:none; align-items:center; justify-content:center; }
+  #catch.on { display:flex; }
+  #catch canvas { position:absolute; inset:-30%; width:160%; height:160%; pointer-events:none; }
+  #overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    background:rgba(233,230,223,.6); text-align:center; padding:20px; pointer-events:none; }
+  #overlay.on { display:flex; }
+  #overlay .big { font-size:min(26vh,140px); text-shadow:0 0 0 #fff, 4px 4px 0 #fff; }
+  #dark { position:absolute; inset:0; background:#000; display:none; color:#333; font-weight:900; font-size:40px; align-items:center; justify-content:center; }
+  #dark.on { display:flex; }
+  #rotate { position:fixed; inset:0; background:var(--blue); color:var(--yellow); display:none; z-index:50; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px; font-weight:900; font-size:24px; text-align:center; padding:30px; }
+  #sab { position:absolute; left:0; right:0; bottom:0; display:none; gap:8px; padding:10px; background:rgba(255,255,255,.95); border-top:3px solid var(--ink); align-items:center; }
+  #sab.on { display:flex; }
+  #sab .opt { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; background:var(--floor); border:2px solid #D6D6D6; font-weight:900; font-size:14px; }
+  #sab .opt.sel { border-color:var(--blue); background:var(--yellow); color:var(--blue); }
+  #sab .left { font-weight:900; font-size:16px; padding:0 10px; white-space:nowrap; }
+  body.sab #steer, body.sab #pu, body.sab #gas { display:none; }
+</style>
+</head>
+<body>
+
+<section id="join" class="screen on">
+  <div class="brand"><b>IKEA</b> QUIZ</div>
+  <div><label>CODICE STANZA</label><input id="code" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+  <div><label>IL TUO NOME</label><input id="name" maxlength="12" autocomplete="off" placeholder="MARCO"></div>
+  <div><label>IL TUO PERSONAGGIO: SCEGLI COSA TIENE IN MANO</label><div id="avatars"></div></div>
+  <div><label>COLORE (personaggio e kart)</label><div id="colors"></div></div>
+  <div class="avprev"><img id="avprev" alt=""><div class="muted">Così ti vedranno gli altri sullo schermo</div></div>
+  <div id="err"></div>
+  <button class="btn y" id="go">ENTRA IN NEGOZIO ▶</button>
+</section>
+
+<section id="wait" class="screen">
+  <div class="brand"><b>IKEA</b> QUIZ</div>
+  <div class="card">
+    <div class="row"><img id="myav" style="width:90px;height:90px"><canvas id="mycar" width="200" height="120" style="width:80px;height:48px"></canvas><div class="big" id="myname" style="font-size:30px"></div></div>
+    <div class="muted" id="wtrack"></div>
+    <div style="font-weight:900">Sei dentro! Aspetta che inizi la serata…</div>
+    <label>CAMBIA OGGETTO</label><div id="avatars2" class="avgrid2"></div>
+  </div>
+  <div class="card">
+    <label>COMANDI</label>
+    <div class="muted">Tieni premuto GAS (pollice destro) per accelerare, lascialo per frenare. Sterza con ◀ ▶ (pollice sinistro), oggetto col pulsante blu accanto al GAS. Sulle rampe tocca lo schermo in volo per un TRICK: boost all'atterraggio! Ai lati della strada c'è il tappeto: ci puoi andare, ma sei più lento.</div>
+    <div class="row"><button class="btn ghost" id="assistBtn"></button></div>
+    <div class="row">
+      <button class="btn ghost sel" id="modeBtn">STERZO A TASTI</button>
+      <button class="btn ghost" id="modeTilt">INCLINAZIONE</button>
+    </div>
+    <div id="tiltbox">
+      <div id="tiltstate" class="muted"></div>
+      <div id="tiltbar"><i id="tiltdot"></i></div>
+      <div class="row"><button class="btn ghost" id="recal">RICALIBRA</button><button class="btn ghost" id="invert">INVERTI</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="race" class="screen">
+  <canvas id="cv3"></canvas>
+  <canvas id="hud"></canvas>
+  <div id="steer"><span id="sl">◀</span><span id="sr">▶</span></div>
+  <button id="gas">GAS</button>
+  <button id="pu"><canvas id="puicon" width="120" height="120"></canvas><span id="pulabel">OGGETTO</span></button>
+  <button id="catch"><canvas id="ring" width="300" height="300"></canvas>CATCH!</button>
+  <div id="sab">
+    <div class="left" id="sableft">LANCI 0</div>
+    <button class="opt sel" data-t="mash"><canvas width="60" height="60" style="width:30px;height:30px" data-i="MASH_POTATO"></canvas>PURÈ</button>
+    <button class="opt" data-t="pillow"><canvas width="60" height="60" style="width:30px;height:30px" data-i="PILLOW_RED"></canvas>CUSCINO</button>
+    <button class="opt" data-t="box"><canvas width="60" height="60" style="width:30px;height:30px" data-i="DAJLIEN_BOX"></canvas>SCATOLA</button>
+  </div>
+  <div id="overlay"></div>
+  <div id="dark">BLACKOUT</div>
+</section>
+
+<section id="quiz" class="screen"></section>
+
+<section id="done" class="screen">
+  <div class="brand"><b>IKEA</b> QUIZ</div>
+  <div class="card" style="align-items:center;text-align:center">
+    <div class="muted">SEI ARRIVATO</div>
+    <div class="big" id="drank" style="font-size:90px"></div>
+    <div style="font-size:26px;font-weight:900" id="dtime"></div>
+    <div style="font-size:22px;font-weight:900;color:#00A651" id="dpts"></div>
+    <div class="muted">Guarda il podio sullo schermo grande!</div>
+  </div>
+</section>
+
+
+<button id="zoomfix">Lo schermo è zoomato: tocca qui</button>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/three.min.js"></script>
+<script src="tracks.js"></script>
+<script src="render.js"></script>
+<script src="quiz-player.js"></script>
+<script>
+'use strict';
+const TR = window.IKEA_TRACKS, R = window.IKEA_RENDER;
+const $ = id => document.getElementById(id);
+const socket = io();
+const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+const me = { id: store.get('ikea_pid'), name: store.get('ikea_name') || '', color: store.get('ikea_color'), avatar: store.get('ikea_avatar') };
+let lobby = null, race = null, state = null, scr = 'join';
+let padSteer = 0, keySteer = 0, gasHeld = false, keyGas = false, racing = false;
+let assist = store.get('ikea_assist') !== '0';
+const tilt = { on: store.get('ikea_mode') === 'tilt', listening: false, raw: null, base: 0, invert: store.get('ikea_inv') === '1', samples: null, msg: '' };
+let countdown = null, sab = null, ice = null, roulette = null, darkUntil = 0, flashUntil = 0, msg = null;
+const disp = {};
+let view = null;
+
+function show(id) {
+  scr = id;
+  for (const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id === id);
+  document.body.classList.toggle('racing', id === 'race');
+}
+
+/* ---------- join ---------- */
+$('code').value = new URLSearchParams(location.search).get('code') || '';
+$('name').value = me.name;
+function renderColors() {
+  const box = $('colors'); box.innerHTML = '';
+  const taken = new Set((lobby ? lobby.players : []).filter(p => p.id !== me.id).map(p => p.color));
+  const colors = lobby ? lobby.colors : [];
+  if (!me.color || taken.has(me.color)) me.color = colors.find(c => !taken.has(c)) || null;
+  colors.forEach(c => {
+    const b = document.createElement('button'); b.className = 'sw' + (c === me.color ? ' sel' : ''); b.style.background = c;
+    b.disabled = taken.has(c);
+    b.onclick = () => { me.color = c; renderColors(); pickJoinAvatar(); };
+    box.append(b);
+  });
+}
+$('go').onclick = () => {
+  if (tilt.on) enableTilt();
+  goFullscreen();
+  const name = $('name').value.trim(), code = $('code').value.trim();
+  if (!name) { $('err').textContent = 'Scrivi il tuo nome'; return; }
+  socket.emit('join', { code, name, color: me.color, avatar: me.avatar }, res => {
+    if (!res || !res.ok) { $('err').textContent = (res && res.error) || 'Errore'; return; }
+    me.id = res.id; me.name = res.name; me.color = res.color; me.avatar = res.avatar;
+    store.set('ikea_pid', me.id); store.set('ikea_name', name); store.set('ikea_color', me.color); store.set('ikea_avatar', me.avatar);
+    showWait();
+  });
+};
+function goFullscreen() {
+  const el = document.documentElement;
+  try {
+    const p = el.requestFullscreen ? el.requestFullscreen() : null;
+    if (p && p.then) p.then(() => window.screen.orientation && window.screen.orientation.lock && window.screen.orientation.lock('landscape').catch(() => {})).catch(() => {});
+  } catch (e) { /* iOS: no fullscreen API */ }
+}
+/* ---------- avatar: an IKEA shopper holding an IKEA object ---------- */
+function renderAvatars(boxId, onPick) {
+  const box = $(boxId); if (!box || !lobby || !lobby.avatars) return;
+  if (!me.avatar || !lobby.avatars.includes(me.avatar)) me.avatar = lobby.avatars[0];
+  box.innerHTML = '';
+  if (box.id === 'avatars2') { box.style.display = 'grid'; box.style.gridTemplateColumns = 'repeat(6,1fr)'; box.style.gap = '6px'; }
+  lobby.avatars.forEach(a => {
+    const b = document.createElement('button'); b.className = a === me.avatar ? 'sel' : '';
+    b.style.cssText = 'background:' + (a === me.avatar ? 'var(--yellow)' : '#fff') + ';border:2px solid ' + (a === me.avatar ? 'var(--blue)' : '#D6D6D6') + ';padding:4px;aspect-ratio:1';
+    const im = document.createElement('img'); im.src = R.thingURL(a, 80); im.style.cssText = 'width:100%;height:100%;object-fit:contain';
+    b.append(im); b.onclick = () => { me.avatar = a; store.set('ikea_avatar', a); onPick(a); };
+    box.append(b);
+  });
+  const pv = $('avprev'); if (pv) pv.src = R.avatarURL(me.color || '#0058A3', me.avatar, 168);
+}
+function showWait() {
+  renderAvatars('avatars2', a => { socket.emit('quiz_avatar', { avatar: a }); showWait(); });
+  $('myav').src = R.avatarURL(me.color || '#0058A3', me.avatar || 'lampada', 180);
+  const c = $('mycar').getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 200, 120);
+  c.scale(6, 6); R.drawCar(c, 16, 10, 0, me.color || '#0058A3');
+  $('myname').textContent = me.name;
+  updateLobbyInfo(); updateModeUi();
+  show('wait');
+}
+function updateLobbyInfo() {
+  if (!lobby) return;
+  const t = TR.byId[lobby.trackId];
+  $('wtrack').textContent = `PISTA: ${t ? t.name : ''} · ${lobby.players.length} piloti`;
+}
+
+/* ---------- control mode: buttons (default) or tilt ---------- */
+function updateAssistUi() { $('assistBtn').textContent = 'STERZO ASSISTITO: ' + (assist ? 'SÌ' : 'NO'); $('assistBtn').classList.toggle('sel', assist); }
+$('assistBtn').onclick = () => { assist = !assist; store.set('ikea_assist', assist ? '1' : '0'); updateAssistUi(); };
+updateAssistUi();
+function updateModeUi() {
+  $('modeBtn').classList.toggle('sel', !tilt.on); $('modeTilt').classList.toggle('sel', tilt.on);
+  $('tiltbox').classList.toggle('on', tilt.on);
+  document.body.classList.toggle('tilt', tilt.on && tilt.raw != null);
+  $('tiltstate').textContent = tilt.raw != null ? 'Giroscopio attivo ✓' + (tilt.invert ? ' (invertito)' : '') : (tilt.msg || 'Attivazione…');
+}
+$('modeBtn').onclick = () => { tilt.on = false; store.set('ikea_mode', 'btn'); updateModeUi(); };
+$('modeTilt').onclick = () => { tilt.on = true; store.set('ikea_mode', 'tilt'); enableTilt(); updateModeUi(); };
+$('recal').onclick = () => calibrate();
+$('invert').onclick = () => { tilt.invert = !tilt.invert; store.set('ikea_inv', tilt.invert ? '1' : '0'); updateModeUi(); };
+function onOrientation(e) {
+  if (e.beta == null) return;
+  const a = (window.screen.orientation && typeof window.screen.orientation.angle === 'number') ? window.screen.orientation.angle : (window.orientation || 0);
+  const v = a === 90 ? e.beta : (a === 270 || a === -90) ? -e.beta : e.gamma;
+  const first = tilt.raw == null;
+  tilt.raw = v; if (tilt.samples) tilt.samples.push(v);
+  if (first) { calibrate(); updateModeUi(); }
+}
+async function enableTilt() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') { tilt.msg = 'Permesso negato: usa i tasti'; tilt.on = false; updateModeUi(); return; }
+    }
+  } catch (e) { tilt.msg = 'Giroscopio non disponibile: usa i tasti'; updateModeUi(); return; }
+  if (!tilt.listening) { window.addEventListener('deviceorientation', onOrientation); tilt.listening = true; }
+  setTimeout(() => { if (tilt.raw == null) { tilt.msg = 'Giroscopio non trovato: usa i tasti'; updateModeUi(); } }, 1500);
+}
+function calibrate(ms) {
+  if (tilt.raw == null) return;
+  tilt.samples = [];
+  setTimeout(() => { const s = tilt.samples; tilt.samples = null; if (s && s.length) tilt.base = s.reduce((a, b) => a + b, 0) / s.length; }, ms || 1200);
+}
+if (tilt.on) setTimeout(enableTilt, 0);
+function steerValue() {
+  if (keySteer) return keySteer;
+  if (tilt.on && tilt.raw != null) {
+    let v = (tilt.raw - tilt.base) / 20 * (tilt.invert ? -1 : 1);
+    if (Math.abs(v) < 0.08) v = 0;
+    return Math.max(-1, Math.min(1, v));
+  }
+  return padSteer;
+}
+setInterval(() => { if (scr === 'wait' && tilt.on) $('tiltdot').style.left = (50 + steerValue() * 48) + '%'; }, 50);
+
+/* ---------- stop the browser from zooming / scrolling while you race ----------
+ * Two thumbs on the screen (steer + GAS) look like a "pinch" to iOS Safari, which ignores
+ * user-scalable=no: block every gesture, double-tap and multi-touch move on the race screen. */
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+document.addEventListener('touchstart', e => { if (scr === 'race' || e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', e => { if (scr === 'race' || e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchend', e => { if (scr === 'race') e.preventDefault(); }, { passive: false });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+// if the page got zoomed anyway (or the phone left full screen), show a fix button
+function checkZoom() {
+  const vv = window.visualViewport, zoomed = vv && Math.abs(vv.scale - 1) > 0.02;
+  $('zoomfix').classList.toggle('on', scr === 'race' && !!zoomed);
+}
+if (window.visualViewport) { visualViewport.addEventListener('resize', checkZoom); visualViewport.addEventListener('scroll', checkZoom); }
+$('zoomfix').addEventListener('pointerdown', () => {
+  const m = document.querySelector('meta[name=viewport]'), c = m.content;
+  m.content = c + ',minimum-scale=1'; setTimeout(() => { m.content = c; checkZoom(); }, 300);     // forces the browser back to 100%
+  window.scrollTo(0, 0); goFullscreen();
+});
+// Android: swiping from the edge exits full screen → re-enter on the next GAS press
+function ensureFullscreen() {
+  if (document.fullscreenEnabled && !document.fullscreenElement) goFullscreen();
+}
+
+/* ---------- touch controls ---------- */
+// steering pad: slide your left thumb between ◀ and ▶ (analog)
+const pad = $('steer'), touches = new Map();
+function padUpdate() {
+  if (!touches.size) { padSteer = 0; } else {
+    const r = pad.getBoundingClientRect(), x = [...touches.values()].pop();
+    let v = (x - (r.left + r.width / 2)) / (r.width * 0.32);
+    if (Math.abs(v) < 0.12) v = 0;
+    padSteer = Math.max(-1, Math.min(1, v));
+  }
+  $('sl').classList.toggle('on', padSteer < 0); $('sr').classList.toggle('on', padSteer > 0);
+  sendInput();
+}
+pad.addEventListener('pointerdown', e => { e.preventDefault(); tryTrick(); try { pad.setPointerCapture(e.pointerId); } catch (_) {} touches.set(e.pointerId, e.clientX); padUpdate(); });
+pad.addEventListener('pointermove', e => { if (touches.has(e.pointerId)) { touches.set(e.pointerId, e.clientX); padUpdate(); } });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) pad.addEventListener(ev, e => { touches.delete(e.pointerId); padUpdate(); });
+// GAS: hold to accelerate, release to brake
+const gasBtn = $('gas');
+gasBtn.addEventListener('pointerdown', e => { e.preventDefault(); try { gasBtn.setPointerCapture(e.pointerId); } catch (_) {} tryTrick(); ensureFullscreen(); gasHeld = true; gasBtn.classList.add('on'); sendInput(); });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) gasBtn.addEventListener(ev, () => { gasHeld = false; gasBtn.classList.remove('on'); sendInput(); });
+$('pu').addEventListener('pointerdown', e => { e.preventDefault(); if (!tryTrick()) usePowerup(); });
+$('catch').addEventListener('pointerdown', e => { e.preventDefault(); tryCatch(); });
+for (const el of document.querySelectorAll('#race button, #steer')) el.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+// in the air (after a ramp): any tap = trick → boost on landing
+function tryTrick() {
+  const m = myState();
+  if (!m || !m.j || (m.f & 1024) || sab) return false;
+  socket.emit('trick'); if (navigator.vibrate) navigator.vibrate(15);
+  return true;
+}
+function usePowerup() {
+  const m = myState();
+  if (!m || !m.it || roulette) return;
+  socket.emit('powerup_used'); if (navigator.vibrate) navigator.vibrate(30);
+}
+
+const keys = {};
+addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ' && !tryTrick()) usePowerup(); if (e.key === 'c' || e.key === 'C') tryCatch(); updateKeys(); });
+addEventListener('keyup', e => { keys[e.key] = false; updateKeys(); });
+function updateKeys() {
+  keySteer = (keys.ArrowLeft || keys.a ? -1 : 0) + (keys.ArrowRight || keys.d ? 1 : 0);
+  keyGas = !!(keys.ArrowUp || keys.w);
+  sendInput();
+}
+function sendInput() {
+  if (scr !== 'race' || sab) return;
+  socket.emit('input', { gas: racing && (gasHeld || keyGas), steer: Math.round(steerValue() * 100) / 100, assist });
+}
+setInterval(sendInput, 100);    // ~10 Hz
+
+/* ---------- ice cream ---------- */
+function tryCatch() {
+  if (!ice || ice.done) return;
+  const k = (performance.now() - ice.start) / ice.ms, ok = k > 0.45 && k < 0.8;
+  ice.done = true;
+  socket.emit('catch', { ok });
+  flashMsg(ok ? 'PRESO! +BOOST' : 'MANCATO!', 900);
+  setTimeout(() => { ice = null; $('catch').classList.remove('on'); }, 500);
+}
+function drawRing(now) {
+  const c = $('ring').getContext('2d'); c.clearRect(0, 0, 300, 300);
+  if (!ice) return;
+  const k = (now - ice.start) / ice.ms;
+  if (k > 1 && !ice.done) { ice.done = true; socket.emit('catch', { ok: false }); setTimeout(() => { ice = null; $('catch').classList.remove('on'); }, 300); }
+  c.strokeStyle = k > 0.45 && k < 0.8 ? '#00A651' : '#E4002B'; c.lineWidth = 10;
+  c.beginPath(); c.arc(150, 150, Math.max(10, 150 * (1 - k) + 40), 0, Math.PI * 2); c.stroke();
+}
+
+/* ---------- socket ---------- */
+socket.on('connect', () => {
+  if (me.id) socket.emit('rejoin', { id: me.id }, res => {
+    if (res && res.ok) { me.name = res.name; me.color = res.color; if (res.phase === 'lobby') showWait(); }
+    else { me.id = null; store.set('ikea_pid', ''); show('join'); }
+  });
+});
+socket.on('lobby', l => {
+  lobby = l;
+  if (scr === 'join') { renderColors(); renderAvatars('avatars', pickJoinAvatar); }
+  if (scr === 'wait') updateLobbyInfo();
+  if (l.quizStarted) return;                 // during the evening the 'quiz' view decides the screen
+  if (l.phase === 'lobby' && (scr === 'race' || scr === 'done')) {
+    if (l.players.some(p => p.id === me.id)) showWait(); else show('join');
+  }
+});
+socket.on('race_countdown', d => {
+  if (!d.players.some(p => p.id === me.id)) return;
+  race = { track: TR.byId[d.trackId], laps: d.laps, cars: {} };
+  d.players.forEach(p => { race.cars[p.id] = p; });
+  for (const k in disp) delete disp[k];
+  state = null; sab = null; ice = null; roulette = null; racing = false;
+  document.body.classList.remove('sab');
+  $('sab').classList.remove('on'); $('catch').classList.remove('on');
+  const n = performance.now();
+  countdown = { start: n, end: n + d.ms, name: race.track.name };
+  if (tilt.on && tilt.raw != null) calibrate(1200);
+  show('race');
+  if (!view) view = window.IKEA_3D.createView($('cv3'), { mode: 'chase', maxDpr: 1.25 });
+  view.setMode('chase'); view.camH = null;
+  view.setTrack(race.track); view.setCars(race.cars);
+});
+socket.on('race_go', () => { racing = true; sendInput(); });
+socket.on('state', s => { state = s; if (s.ph === 'race' && !racing && !sab) { racing = true; } });
+socket.on('icecream', d => { if (sab) return; ice = { start: performance.now(), ms: d.ms }; $('catch').classList.add('on'); if (navigator.vibrate) navigator.vibrate([40, 40, 40]); });
+socket.on('blackout', d => { darkUntil = performance.now() + d.ms; });
+socket.on('powerup_collected', d => {
+  if (d.playerId !== me.id) return;
+  roulette = { start: performance.now(), item: d.item };
+  if (navigator.vibrate) navigator.vibrate(25);
+});
+socket.on('powerup_used', d => {
+  if (d.playerId !== me.id) return;
+  const label = TR.ITEMS[d.item] ? TR.ITEMS[d.item].label : '';
+  if (d.item === 'SWEDISH_FLAG') flashMsg('TUTTI RALLENTANO!', 1200);
+  else if (d.item.startsWith('KOTTBULLAR')) flashMsg('BOOST!', 700);
+  else if (d.item === 'HOTDOG') flashMsg('INVINCIBILE! Tocca gli altri', 1400);
+  else if (d.item === 'PILLOW_BLUE') flashMsg('CUSCINO BLU → AL PRIMO!', 1400);
+  else flashMsg(label, 700);
+});
+socket.on('lap_completed', d => { if (d.playerId === me.id && race && d.lap < race.laps) flashMsg(`ULTIMO GIRO!`, 1500, R.fmtTime(d.time)); });
+socket.on('fx', f => {
+  if (view) view.fx(f);
+  if (f.k === 'hit' && f.id === me.id && navigator.vibrate) navigator.vibrate(120);
+  if (f.k === 'flag') flashUntil = performance.now() + 2000;
+  if (f.k === 'trick' && f.id === me.id) flashMsg('TRICK!', 700);
+  if (f.k === 'blue_target' && f.id === me.id) { flashMsg('CUSCINO BLU IN ARRIVO!', 2200, 'Sei primo: ti sta cercando…'); if (navigator.vibrate) navigator.vibrate([60, 60, 60]); }
+  if (f.k === 'blue_hit' && f.id === me.id) flashMsg('COLPITO DAL CUSCINO BLU!', 1500);
+  if (f.k === 'land' && f.id === me.id && f.trick) flashMsg('BOOST!', 700);
+  if (f.k === 'event' && f.ev !== 'icecream') flashMsg(TR.EVENTS[f.ev] || '', 1300);
+});
+socket.on('sabotage_start', d => {
+  sab = { left: d.throws, type: 'mash', rank: d.rank };
+  racing = false; ice = null; $('catch').classList.remove('on');
+  document.body.classList.add('sab'); $('sab').classList.add('on');
+  if (view) view.setMode('overview');
+  updateSab();
+  flashMsg(`${d.rank}° · ${R.fmtTime(d.time)}`, 2500, 'SABOTAGGIO! Tocca la pista per lanciare');
+});
+socket.on('sabotage_throw', d => { if (d.playerId === me.id && sab) { sab.left = d.left; updateSab(); } });
+function pickJoinAvatar() { renderAvatars('avatars', pickJoinAvatar); }
+// the quiz drives every screen except the race itself
+socket.on('quiz', v => {
+  if (!me.id || !v.me) return;
+  me.score = v.me.score;
+  if (!v.started) { if (scr === 'quiz' || scr === 'done') showWait(); return; }
+  if (window.IKEA_QUIZ_PLAYER.handlesStage(v.stage)) {
+    if (scr !== 'quiz') show('quiz');
+    window.IKEA_QUIZ_PLAYER.onQuiz(v);
+  }
+});
+socket.on('race_finished', d => {
+  const r = d.results.find(x => x.playerId === me.id);
+  if (!r) return;
+  sab = null; ice = null; racing = false; document.body.classList.remove('sab');
+  $('drank').textContent = r.rank + '°';
+  $('dtime').textContent = r.time == null ? 'NON ARRIVATO' : R.fmtTime(r.time);
+  $('dpts').textContent = r.pts != null ? `+${r.pts} punti in classifica` : '';
+  show('done');
+});
+
+/* ---------- sabotage ---------- */
+document.querySelectorAll('#sab canvas').forEach(c => R.drawItem(c.getContext('2d'), c.dataset.i, 30, 30, 2.4));
+document.querySelectorAll('#sab .opt').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); if (sab) { sab.type = b.dataset.t; updateSab(); } }));
+function updateSab() {
+  if (!sab) return;
+  $('sableft').textContent = `LANCI ${sab.left}`;
+  document.querySelectorAll('#sab .opt').forEach(b => b.classList.toggle('sel', b.dataset.t === sab.type));
+}
+$('cv3').addEventListener('pointerdown', e => {
+  if (!sab) { tryTrick(); return; }
+  if (!sab || sab.left <= 0 || !view) return;
+  const w = view.pick(e.clientX, e.clientY);
+  if (!w) return;
+  socket.emit('sabotage_throw', { type: sab.type, x: w.x, y: w.y });
+  if (navigator.vibrate) navigator.vibrate(20);
+});
+
+/* ---------- render loop ---------- */
+function flashMsg(text, ms, sub) { msg = { text, sub, until: performance.now() + ms }; }
+const myState = () => (state ? state.p.find(p => p.i === me.id) : null);
+const hud = $('hud'), ctx = hud.getContext('2d');
+const ITEM_KEYS = Object.keys(TR.ITEMS);
+let last = performance.now(), lastIcon = '';
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (scr !== 'race' || !race || !view) return;
+  const mine = myState();
+  if (state) {
+    R.lerpCars(disp, state.p, dt);
+    view.update(state, disp, dt, now, { me: me.id, names: !!sab, host: !!sab });
+  }
+  view.render();
+  // HUD
+  const dpr = Math.min(2, window.devicePixelRatio || 1), cw = hud.clientWidth, ch = hud.clientHeight;
+  if (hud.width !== Math.round(cw * dpr) || hud.height !== Math.round(ch * dpr)) { hud.width = Math.round(cw * dpr); hud.height = Math.round(ch * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cw, ch);
+  drawHud(now, cw, ch, mine);
+  // power-up button (with roulette)
+  if (roulette && now - roulette.start > 1100) roulette = null;
+  const item = sab ? null : roulette ? ITEM_KEYS[Math.floor(now / 70) % ITEM_KEYS.length] : (mine ? mine.it : null);
+  const key = (item || '') + (roulette ? 'r' : '');
+  if (key !== lastIcon) {
+    lastIcon = key;
+    const pc = $('puicon').getContext('2d'); pc.clearRect(0, 0, 120, 120);
+    if (item) { pc.fillStyle = '#fff'; pc.beginPath(); pc.arc(60, 60, 54, 0, 7); pc.fill(); R.drawItem(pc, item, 60, 60, 4); }
+    $('pulabel').textContent = roulette ? '…' : item ? TR.ITEMS[item].label : 'OGGETTO';
+    $('pu').classList.toggle('ready', !!item && !roulette);
+  }
+  $('dark').classList.toggle('on', now < darkUntil);
+  drawRing(now);
+}
+requestAnimationFrame(frame);
+
+function drawHud(now, cw, ch, mine) {
+  const C = R.C, ov = $('overlay');
+  let ovHtml = '';
+  if (countdown && now < countdown.end) {
+    const left = countdown.end - now;
+    ovHtml = left > 3000
+      ? `<div style="font-size:min(9vh,44px);font-weight:900;color:${C.blue}">${countdown.name}</div>
+         <div class="muted">${tilt.on && tilt.raw != null ? 'Tieni il telefono fermo: calibro…' : 'Tieni premuto GAS al via! · ◀ ▶ per sterzare'}</div>`
+      : `<div class="big">${Math.ceil(left / 1000)}</div>`;
+  } else if (countdown && now < countdown.end + 800) ovHtml = '<div class="big">VIA!</div>';
+  if (ov.dataset.h !== ovHtml) { ov.innerHTML = ovHtml; ov.dataset.h = ovHtml; ov.classList.toggle('on', !!ovHtml); }
+  if (!mine || !state) return;
+  ctx.textBaseline = 'middle';
+  if (!sab) {
+    // position (big, Mario Kart style) top-right
+    const n = state.o.length, place = state.o.indexOf(me.id) + 1;
+    ctx.textAlign = 'right'; ctx.font = '900 64px "Noto Sans", Verdana, sans-serif';
+    ctx.lineWidth = 8; ctx.strokeStyle = C.blue; ctx.lineJoin = 'round';
+    ctx.strokeText(place + '°', cw - 18, 50); ctx.fillStyle = C.yellow; ctx.fillText(place + '°', cw - 18, 50);
+    ctx.font = '800 15px Verdana, sans-serif'; ctx.fillStyle = C.ink; ctx.fillText('su ' + n, cw - 20, 92);
+    // lap + time
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; R.rr(ctx, 14, 12, 190, 40, 8); ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = '900 18px Verdana, sans-serif';
+    ctx.fillText(`GIRO ${Math.min(race.laps, mine.l + 1)}/${race.laps}  ${R.fmtTime(Math.max(0, state.t))}`, 26, 33);
+    // minimap
+    drawMinimap(cw - 132, 120, 120, now);
+    if (mine.j && !(mine.f & 1024)) { ctx.textAlign = 'center'; ctx.font = '900 26px Verdana, sans-serif'; ctx.lineWidth = 6; ctx.strokeStyle = '#fff';
+      ctx.strokeText('TOCCA! TRICK', cw / 2, ch * 0.22); ctx.fillStyle = '#FF7A00'; ctx.fillText('TOCCA! TRICK', cw / 2, ch * 0.22); }
+    if (mine.f & 4) { ctx.textAlign = 'center'; ctx.fillStyle = '#006AA7'; ctx.font = '900 18px Verdana, sans-serif'; ctx.fillText('RALLENTATO!', cw / 2, 70); }
+    if (mine.f & 16) { ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = '900 18px Verdana, sans-serif'; ctx.fillText('HOT DOG: INVINCIBILE', cw / 2, 70); }
+  } else {
+    ctx.fillStyle = C.yellow; ctx.fillRect(0, 0, cw, 40);
+    ctx.fillStyle = C.blue; ctx.font = '900 17px Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(sab.left > 0 ? `SABOTAGGIO · tocca la pista per lanciare (${sab.left})` : 'LANCI FINITI · goditi lo spettacolo', cw / 2, 21);
+  }
+  if (msg && now < msg.until) {
+    ctx.font = '900 30px Verdana, sans-serif'; ctx.textAlign = 'center';
+    const w = Math.max(ctx.measureText(msg.text).width, msg.sub ? 220 : 0) + 40, y = ch * 0.3;
+    ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillRect(cw / 2 - w / 2, y - 30, w, msg.sub ? 84 : 60);
+    ctx.fillStyle = C.blue; ctx.fillText(msg.text, cw / 2, y);
+    if (msg.sub) { ctx.font = '800 15px Verdana, sans-serif'; ctx.fillStyle = C.ink; ctx.fillText(msg.sub, cw / 2, y + 36); }
+  }
+  if (now < flashUntil && Math.floor(now / 140) % 2) { ctx.fillStyle = 'rgba(0,106,167,.25)'; ctx.fillRect(0, 0, cw, ch); }
+}
+function drawMinimap(x, y, w, now) {
+  const t = race.track, s = w / TR.WORLD.w, h = TR.WORLD.h * s;
+  ctx.save(); ctx.globalAlpha = 0.85;
+  ctx.fillStyle = 'rgba(255,255,255,.7)'; R.rr(ctx, x - 6, y - 6, w + 12, h + 12, 8); ctx.fill();
+  ctx.translate(x, y); ctx.scale(s, s);
+  ctx.strokeStyle = '#9E9E9E'; ctx.lineWidth = 80; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const p of [t.main, t.branch].filter(Boolean)) {
+    ctx.beginPath(); p.pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); if (p.closed) ctx.closePath(); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (const p of state.p) {
+    if (p.fin || !disp[p.i] || ((p.f & 32) && p.i !== me.id)) continue;
+    const car = race.cars[p.i]; if (!car) continue;
+    const isMe = p.i === me.id;
+    ctx.fillStyle = car.color; ctx.strokeStyle = isMe ? '#111' : '#fff'; ctx.lineWidth = isMe ? 18 : 10;
+    ctx.beginPath(); ctx.arc(disp[p.i].x, disp[p.i].y, isMe ? 80 : 55, 0, 7); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+</script>
+</body>
+</html>

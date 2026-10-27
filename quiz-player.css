@@ -1,0 +1,80 @@
+/* IKEA QUIZ · phone */
+#avatars { display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; }
+#avatars button { background:#fff; border:2px solid #D6D6D6; padding:4px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; }
+#avatars button.sel { border-color:var(--blue); background:var(--yellow); }
+#avatars img { width:100%; height:100%; object-fit:contain; }
+.avprev { display:flex; align-items:center; gap:12px; }
+.avprev img { width:84px; height:84px; }
+
+#quiz { flex-direction:column; background:var(--floor); overflow:hidden; }
+#quiz .qh { display:flex; align-items:center; gap:10px; padding:max(8px, env(safe-area-inset-top)) 12px 8px; background:var(--blue); color:#fff; flex:none; }
+#quiz .qh img { width:44px; height:44px; background:#fff; border-radius:50%; }
+#quiz .qh .nm { font-weight:900; font-size:16px; line-height:1.1; }
+#quiz .qh .nm small { display:block; color:var(--yellow); font-size:12px; letter-spacing:.06em; }
+#quiz .qh .sp { flex:1; }
+#quiz .qh .sc { font-weight:900; font-size:18px; text-align:right; line-height:1.1; }
+#quiz .qh .sc small { display:block; font-size:11px; color:var(--yellow); }
+#quiz .qbar { height:6px; background:#D6D6D6; flex:none; }
+#quiz .qbar i { display:block; height:100%; background:var(--yellow); width:100%; transition:width .25s linear; }
+#quiz .qc { flex:1; min-height:0; overflow:auto; touch-action:pan-y; display:flex; flex-direction:column; gap:12px; padding:14px; align-items:stretch; position:relative; }
+.qc .center { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; }
+.qc .huge { font-weight:900; font-size:min(10vw, 52px); color:var(--blue); line-height:1.05; }
+.qc .lab { font-weight:900; font-size:13px; letter-spacing:.1em; color:var(--grey); }
+.qc .qq { font-weight:900; font-size:min(5.4vw, 24px); line-height:1.2; text-align:center; }
+.qc .word { font-weight:900; font-size:min(12vw, 56px); background:var(--yellow); color:var(--blue); padding:2px 14px; align-self:center; }
+.qc .pimg { max-height:26vh; max-width:100%; object-fit:contain; align-self:center; background:#fff; border:2px solid var(--ink); padding:4px; }
+.qc .bigbtn { font-size:26px; padding:18px; }
+.qc .note { font-weight:800; color:var(--grey); text-align:center; font-size:14px; }
+
+.pans { display:grid; gap:10px; grid-template-columns:1fr; }
+.pans.n2 { grid-template-columns:1fr 1fr; }
+.pans.n2 .pa { min-height:22vh; font-size:24px; justify-content:center; flex-direction:column; }
+@media (orientation:landscape) { .pans { grid-template-columns:1fr 1fr; } .pans.n5 .pa:last-child { grid-column:span 2; } }
+.pa { position:relative; display:flex; align-items:center; gap:12px; padding:14px; min-height:58px; color:#fff; font-weight:900; font-size:18px; text-align:left;
+  border:3px solid rgba(0,0,0,.25); touch-action:manipulation; }
+.pa .l { flex:none; width:32px; height:32px; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; }
+.pa.picked { outline:5px solid var(--ink); outline-offset:-5px; }
+.pa.off { opacity:.25; }
+.pa.ok { outline:5px solid #00A651; outline-offset:-5px; opacity:1; }
+.lockmsg { background:var(--ink); color:#fff; font-weight:900; text-align:center; padding:10px; }
+
+.res { padding:20px; text-align:center; font-weight:900; color:#fff; }
+.res.ok { background:#00A651; } .res.no { background:#E4002B; } .res.none { background:#767676; }
+.res .pts { font-size:46px; }
+
+/* powers */
+.pgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pbtn { background:#fff; border:3px solid var(--ink); padding:12px; text-align:left; display:flex; flex-direction:column; gap:4px; }
+.pbtn b { font-size:18px; }
+.pbtn span { font-size:12px; color:var(--grey); font-weight:700; }
+.pbtn.obstacle b { color:#E4002B; } .pbtn.bonus b { color:#00A651; }
+.pbtn.skip { grid-column:span 2; align-items:center; background:var(--floor); }
+.tgrid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.tgrid button { background:#fff; border:2px solid var(--ink); padding:6px; font-weight:900; font-size:13px; display:flex; flex-direction:column; align-items:center; }
+.tgrid img { width:60px; height:60px; }
+
+/* order question */
+.olist { display:flex; flex-direction:column; gap:8px; }
+.oitem { display:flex; align-items:center; gap:8px; background:#fff; border:3px solid var(--ink); padding:6px; touch-action:none; user-select:none; }
+.oitem .n { width:28px; font-weight:900; font-size:20px; color:var(--blue); text-align:center; }
+.oitem img { flex:1; height:54px; object-fit:contain; pointer-events:none; min-width:0; }
+.oitem .mv { display:flex; flex-direction:column; gap:4px; }
+.oitem .mv button { width:40px; height:26px; background:var(--blue); color:#fff; font-weight:900; }
+.oitem.drag { opacity:.85; box-shadow:0 8px 20px rgba(0,0,0,.3); z-index:5; position:relative; background:var(--yellow); }
+.oitem.ok { border-color:#00A651; } .oitem.no { border-color:#E4002B; }
+.oitem .yr { font-weight:900; width:50px; text-align:center; }
+
+/* obstacles (effects) */
+.fx { position:absolute; inset:0; z-index:20; }
+.fx-ice { background:rgba(180,225,255,.85); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; font-weight:900; color:#0B3C63; font-size:26px; border:6px solid #fff; touch-action:manipulation; }
+.fx-ice .cr { font-size:16px; }
+.fx-ice svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.blob { position:absolute; z-index:21; width:120px; height:100px; background:#6BBF3A; border-radius:48% 52% 45% 55%; box-shadow:inset -8px -10px 0 #4E9A27; display:flex; align-items:center;
+  justify-content:center; color:#1F4D0B; font-weight:900; font-size:12px; touch-action:manipulation; }
+.fx-boxes { pointer-events:auto; }
+.cbox { position:absolute; z-index:21; background:#C49A62; border:3px solid #8A6634; display:flex; align-items:center; justify-content:center; font-weight:900; color:#5D4037; font-size:14px;
+  box-shadow:inset 0 0 0 6px rgba(0,0,0,.06); }
+.cbox::after { content:""; position:absolute; left:46%; top:0; bottom:0; width:8%; background:#A07A45; }
+.fxmsg { position:absolute; left:10px; right:10px; top:10px; z-index:22; background:#E4002B; color:#fff; font-weight:900; text-align:center; padding:8px; }
+.fxmsg.good { background:#00A651; }
