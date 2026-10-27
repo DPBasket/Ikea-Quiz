@@ -61,6 +61,17 @@ const hooks = {
 const app = express();
 app.use(express.static(STATIC_DIR));
 app.get('/three.min.js', (req, res) => res.sendFile(path.join(path.dirname(require.resolve('three')), 'three.min.js')));
+// list of the quiz pictures: the TV checks them in the lobby and warns if one is missing on the server
+const QUIZ_IMAGES = (() => {
+  const DATA = require('./quiz-data');
+  const out = new Set();
+  for (const p of DATA.PARTS) for (const q of p.questions) {
+    if (q.img) out.add(q.img); if (q.revealImg) out.add(q.revealImg);
+    for (const it of q.items || []) out.add(it.img);
+  }
+  return [...out];
+})();
+app.get('/quiz-images.json', (req, res) => res.json(QUIZ_IMAGES));
 app.get('/', (req, res) => res.redirect('/host.html'));
 app.get('/play', (req, res) => res.redirect('/player.html' + (req.query.code ? '?code=' + encodeURIComponent(req.query.code) : '')));
 
@@ -115,7 +126,7 @@ function resetRacer(p) {
     x: 0, y: 0, h: 0, vx: 0, vy: 0, lap: 0, prog: 0, lastS: 0, lapStart: 0, lapTimes: [],
     finished: false, finishTime: null, rank: 0, place: 0, item: null, itemReadyAt: 0, onTrack: true,
     boostUntil: 0, boostMul: 1, boostKind: 0, slowUntil: 0, slowMul: 1, slideUntil: 0, spinDir: 1,
-    stunUntil: 0, inviUntil: 0, ghostUntil: 0, jumpUntil: 0, jumpStart: 0, jumpDur: 0, airborne: false, trick: false, throwsLeft: 0,
+    stunUntil: 0, inviUntil: 0, rocketUntil: 0, ghostUntil: 0, jumpUntil: 0, jumpStart: 0, jumpDur: 0, airborne: false, trick: false, throwsLeft: 0,
     stuckT: 0, botItemAt: 0, botThrowAt: 0, botLane: rnd(-0.3, 0.3), botSkill: rnd(0.86, 1),
     input: { gas: false, steer: 0, assist: true }
   });
@@ -223,12 +234,13 @@ function makeBoxRows(tr) {
   return out;
 }
 // better items for whoever is behind (like Mario Kart)
-const STRONG = { KOTTBULLAR_GOLD: 1, PILLOW_RED: 1, PILLOW_BLUE: 1, HOTDOG: 1, CART: 1, SWEDISH_FLAG: 1, FRAKTA_BAG: 1 };
+const STRONG = { PILLOW_RED: 1, PILLOW_BLUE: 1, HOTDOG: 1, CART: 1, SWEDISH_FLAG: 1, FRAKTA_BAG: 1 };
+const SPEED = { KOTTBULLAR_1: 1, KOTTBULLAR_GOLD: 1 };     // speed boosts: much more frequent at the back, to catch up
 function randomItem(p) {
   const n = Math.max(1, game.players.size - 1), f = p ? (p.place - 1) / n : 0.5;    // 0 = leader, 1 = last
   const w = Object.entries(TR.ITEMS)
     .filter(([k]) => !(k === 'PILLOW_BLUE' && p && p.place === 1))          // the leader never gets the blue pillow
-    .map(([k, v]) => [k, v.weight * (STRONG[k] ? 0.35 + 1.6 * f : 1.5 - 1.0 * f)]);
+    .map(([k, v]) => [k, v.weight * (SPEED[k] ? 0.5 + 2.5 * f : STRONG[k] ? 0.35 + 1.6 * f : 1.5 - 1.0 * f)]);
   let r = Math.random() * w.reduce((a, b) => a + b[1], 0);
   for (const [k, v] of w) { r -= v; if (r < 0) return k; }
   return 'KOTTBULLAR_1';
@@ -277,18 +289,17 @@ function useItem(p, now) {
     case 'DAJLIEN_BOX':
       game.traps.push({ id: uid(), type: 'box', x: p.x - fx * 32, y: p.y - fy * 32, r: 16, armAt: now + 250 }); break;
     case 'HOTDOG': p.inviUntil = now + 8000; p.slowUntil = p.slideUntil = p.stunUntil = 0; break;   // like the Mario Kart star: also cancels a hit in progress
-    case 'CART': {
-      const jump = 340, pt = TR.pointAt(tr.main, p.lastS + jump);
-      io.emit('fx', { k: 'flame', x: p.x, y: p.y, h: p.h });
-      const sp = Math.max(240, Math.hypot(p.vx, p.vy));
-      p.x = pt.x; p.y = pt.y; p.h = pt.ang; p.vx = Math.cos(pt.ang) * sp; p.vy = Math.sin(pt.ang) * sp;
-      p.prog += jump; p.lastS = ((p.lastS + jump) % tr.L + tr.L) % tr.L;
-      io.emit('fx', { k: 'flame', x: pt.x, y: pt.y, h: pt.ang });
+    case 'CART':                       // rocket cart: 5.5 s, drives itself along the road, whoever you touch is stopped
+      p.rocketUntil = now + 5500; p.slowUntil = p.slideUntil = p.stunUntil = 0;
+      io.emit('fx', { k: 'flame', x: r1(p.x), y: r1(p.y), h: p.h });
       break;
-    }
     case 'FRAKTA_BAG': p.ghostUntil = now + 3000; break;
     case 'SWEDISH_FLAG':
-      for (const o of racers()) if (o !== p && now >= o.inviUntil) { o.slowUntil = now + 2000; o.slowMul = 0.5; }
+      // everyone else slows down; the further ahead they are, the longer it lasts (1st ≈ 4 s … last ≈ 1.5 s)
+      for (const o of racers()) if (o !== p && now >= o.inviUntil && now >= (o.rocketUntil || 0)) {
+        const n = Math.max(1, racers().length - 1), f = (o.place - 1) / n;
+        o.slowUntil = now + Math.round(4000 - 2500 * f); o.slowMul = 0.5;
+      }
       io.emit('fx', { k: 'flag', id: p.id });
       break;
   }
@@ -297,7 +308,7 @@ function useItem(p, now) {
 
 // returns true if the effect landed
 function hit(p, kind, now) {
-  if (now < p.inviUntil) return false;
+  if (now < p.inviUntil || now < (p.rocketUntil || 0)) return false;
   if (now < p.ghostUntil && kind !== 'forklift' && kind !== 'launch') return false;
   p.spinDir = Math.random() < 0.5 ? -1 : 1;
   switch (kind) {
@@ -317,7 +328,9 @@ function hit(p, kind, now) {
 /* ---------- physics ---------- */
 function physics(p, dt, now, tr) {
   let gas = p.input.gas, steer = p.input.steer;
-  if (!p.bot && p.input.assist && Math.abs(steer) < 0.15 && gas) steer = assistSteer(p, tr);      // EASY: follows the road when you let go
+  const rocket = now < (p.rocketUntil || 0);
+  if (rocket) { gas = true; steer = clamp(assistSteer(p, tr, true) + steer * 0.45, -1, 1); }   // rocket: auto-pilot, you can still nudge it
+  else if (!p.bot && p.input.assist && Math.abs(steer) < 0.15 && gas) steer = assistSteer(p, tr);      // EASY: follows the road when you let go
   const stunned = now < p.stunUntil, sliding = now < p.slideUntil, jumping = now < p.jumpUntil;
   if (stunned) gas = false;
   const speed = Math.hypot(p.vx, p.vy);
@@ -325,7 +338,7 @@ function physics(p, dt, now, tr) {
   if (sliding) p.h += p.spinDir * 7 * dt;
   else if (!stunned && !jumping) {
     const sf = Math.max(0.35, Math.min(1, Math.abs(fwd0) / 50));
-    const turn = CAR.turn * (1 - 0.5 * Math.min(1, speed / CAR.maxSpeed));   // less steering at high speed → brake!
+    const turn = CAR.turn * (1 - 0.5 * Math.min(1, speed / CAR.maxSpeed)) * (rocket ? 2 : 1);   // less steering at high speed → brake!
     p.h += steer * turn * sf * dt * (fwd0 < -5 ? -1 : 1);
   }
   const fx = Math.cos(p.h), fy = Math.sin(p.h);
@@ -336,8 +349,9 @@ function physics(p, dt, now, tr) {
   if (boosting) max *= p.boostMul;
   if (now < p.slowUntil) max *= p.slowMul;
   if (now < p.inviUntil) max *= 1.12;                // HOT DOG: a little faster…
-  if (!p.onTrack && now >= p.inviUntil) max *= 0.55; // off the road, on the carpet: slower (…and not with the HOT DOG)
-  if (gas || boosting) fwd += CAR.accel * (boosting ? 1.3 : 1) * dt;
+  if (rocket) max *= 1.4;
+  if (!p.onTrack && now >= p.inviUntil && !rocket) max *= 0.55; // off the road, on the carpet: slower (…not with HOT DOG / rocket)
+  if (gas || boosting) fwd += CAR.accel * (boosting || rocket ? 1.3 : 1) * dt;
   else fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), CAR.brake * dt);   // releasing gas = brake
   if (fwd > max) fwd -= Math.min(fwd - max, (p.onTrack ? 380 : 600) * dt);
   if (fwd < -40) fwd = -40;
@@ -368,16 +382,25 @@ function wallCollide(p, tr) {
 }
 
 // steering assist: keeps your lane and follows the road ahead, away from the walls
-function assistSteer(p, tr) {
+function assistSteer(p, tr, center) {
   const e = TR.nearestEdge(tr, p.x, p.y);
-  if (tr.branch && e !== undefined && TR.projectPath(tr.branch, p.x, p.y).d < TR.projectPath(tr.main, p.x, p.y).d) return 0;
+  if (!center && tr.branch && e !== undefined && TR.projectPath(tr.branch, p.x, p.y).d < TR.projectPath(tr.main, p.x, p.y).d) return 0;
   const spd = Math.hypot(p.vx, p.vy);
   const q = TR.pointAt(tr.main, p.lastS), qn = [-Math.sin(q.ang), Math.cos(q.ang)];
-  const lat = clamp((p.x - q.x) * qn[0] + (p.y - q.y) * qn[1], -(q.w / 2 - 40), q.w / 2 - 40);
+  const lat = center ? clamp((p.x - q.x) * qn[0] + (p.y - q.y) * qn[1], -q.w / 5, q.w / 5) : clamp((p.x - q.x) * qn[0] + (p.y - q.y) * qn[1], -(q.w / 2 - 40), q.w / 2 - 40);
   const t = TR.pointAt(tr.main, p.lastS + 90 + spd * 0.3);
   const tx = t.x - Math.sin(t.ang) * lat, ty = t.y + Math.cos(t.ang) * lat;
   const err = angNorm(Math.atan2(ty - p.y, tx - p.x) - p.h);
   return clamp(err * 2, -0.85, 0.85);
+}
+
+// hit by a rocket cart: like crashing into a DAJLIEN box
+function rocketHit(victim, src, now) {
+  if (now - (victim.hotdogHitAt || 0) < 900) return;
+  victim.hotdogHitAt = now;
+  if (!hit(victim, 'box', now)) return;
+  const dx = victim.x - src.x, dy = victim.y - src.y, d = Math.hypot(dx, dy) || 1;
+  victim.vx = dx / d * 90; victim.vy = dy / d * 90;
 }
 
 // touching someone while you have the HOT DOG: they get hit as if by a pillow
@@ -398,6 +421,9 @@ function carCollisions(list, now) {
     if (d >= 2 * R || d < 0.01) continue;
     const nx = dx / d, ny = dy / d, ov = (2 * R - d) / 2;
     a.x -= nx * ov; a.y -= ny * ov; b.x += nx * ov; b.y += ny * ov;
+    const ar = now < (a.rocketUntil || 0), br = now < (b.rocketUntil || 0);
+    if (ar && !br) { rocketHit(b, a, now); continue; }
+    if (br && !ar) { rocketHit(a, b, now); continue; }
     const ai = now < a.inviUntil, bi = now < b.inviUntil;
     if (ai && !bi) { hotdogHit(b, a, now); continue; }
     if (bi && !ai) { hotdogHit(a, b, now); continue; }
@@ -422,7 +448,7 @@ function eventObstacles(now) {
 function collideCircle(p, o, now) {
   const dx = p.x - o.x, dy = p.y - o.y, d = Math.hypot(dx, dy), rr = o.r + CAR.r;
   if (d >= rr || d < 0.001) return;
-  if (now < p.inviUntil || now < p.jumpUntil) return;    // hot dog passes through everything
+  if (now < p.inviUntil || now < p.jumpUntil || now < (p.rocketUntil || 0)) return;    // hot dog / rocket pass through everything
   const nx = dx / d, ny = dy / d;
   p.x = o.x + nx * rr; p.y = o.y + ny * rr;
   const vn = p.vx * nx + p.vy * ny;
@@ -621,7 +647,7 @@ function step(now, dt) {
     // item boxes
     for (const b of game.boxes) {
       if (!b.active || Math.hypot(p.x - b.x, p.y - b.y) > 26) continue;
-      b.active = false; b.respawnAt = now + 2200;            // the box breaks even if you already hold an item
+      b.active = false; b.respawnAt = now + 500;            // the box breaks even if you already hold an item
       io.emit('fx', { k: 'box', x: r1(b.x), y: r1(b.y) });
       if (!p.item) {
         p.item = randomItem(p); p.itemReadyAt = now + 1100;  // roulette on the phone
@@ -721,6 +747,7 @@ function flags(p, now) {
   if (!p.onTrack) f |= 128;
   if (now < p.stunUntil) f |= 256;
   if (p.trick) f |= 1024;
+  if (now < (p.rocketUntil || 0)) f |= 2048;
   return f;
 }
 function snapshot(now) {
@@ -854,6 +881,8 @@ io.on('connection', (s) => {
 /* ---------- start ---------- */
 let loops = null;
 function start() {
+  const missing = QUIZ_IMAGES.filter(f => !fs.existsSync(path.join(STATIC_DIR, f)));
+  if (missing.length) console.warn(`  ⚠ ${missing.length} immagini del quiz mancanti in public/: ${missing.join(', ')}`);
   quiz.restore(newPlayer);                   // server restarted mid-game? pick up where we were
   httpServer.listen(PORT, () => {
     console.log(`\n  IKEA QUIZ  ·  codice stanza ${game.code}`);

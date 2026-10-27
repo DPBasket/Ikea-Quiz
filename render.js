@@ -1145,6 +1145,10 @@
         else if (p.f & 512) s.emit(bx, 8, bz, { n: 2, colors: ['#8D5524', '#A0522D'], dir: back, spread: 0.4, speed: 50, life: 1, gravity: 0 });
         else if (p.f & 1) s.emit(bx, 9, bz, { n: 2, colors: ['#FF7A00', '#FFDB00'], dir: back, spread: 0.5, speed: 80, life: 0.35, gravity: 0 });
         if (invi) s.emit(d.x, 14, d.y, { n: 1, colors: ['#FFDB00', '#E4002B'], speed: 70, up: 60, life: 0.4 });
+        if (p.f & 2048) {                     // rocket cart: big flame + smoke trail
+          s.emit(bx, 10, bz, { n: 4, colors: ['#FF7A00', '#E4002B', '#FFDB00'], dir: back, spread: 0.5, speed: 140, up: 20, life: 0.45, gravity: 0 });
+          s.emit(bx, 14, bz, { n: 1, colors: ['#BDBDBD', '#FFFFFF'], dir: back, spread: 0.8, speed: 40, up: 30, life: 0.9, gravity: -20 });
+        }
       }
       // item boxes
       const dummy = new T3.Object3D();

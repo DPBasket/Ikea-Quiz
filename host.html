@@ -5,71 +5,79 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IKEA QUIZ · Schermo</title>
 <link rel="stylesheet" href="quiz-host.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-  :root { --blue:#0058A3; --yellow:#FFDB00; --ink:#111; --floor:#F5F5F5; --track:#E0E0E0; --grey:#767676; }
+  :root { --blue:#0058A3; --blue-2:#004F93; --yellow:#FFDB00; --ink:#111; --floor:#F2F2F2; --track:#E0E0E0; --grey:#5C5C5C; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  html, body { height:100%; background:var(--floor); color:var(--ink); overflow:hidden;
-    font-family:"Noto Sans", Verdana, "Helvetica Neue", Arial, sans-serif; }
-  button { font:inherit; cursor:pointer; border:0; }
+  html, body { height:100%; background:var(--blue); color:var(--ink); overflow:hidden;
+    font-family:"Noto Sans", system-ui, sans-serif; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:0; }
   .screen { position:absolute; inset:0; display:none; }
   .screen.on { display:flex; }
-  .brand { font-weight:900; font-size:clamp(28px,4vw,56px); letter-spacing:.02em; line-height:1; }
-  .brand b { background:var(--blue); color:var(--yellow); padding:.05em .25em; }
-  .tag { display:inline-block; background:var(--yellow); color:var(--blue); font-weight:900; text-transform:uppercase; padding:.2em .5em; letter-spacing:.04em; }
-  .btn { background:var(--blue); color:#fff; font-weight:900; text-transform:uppercase; letter-spacing:.06em; padding:.9em 1.4em; font-size:16px; }
+  .btn { background:var(--ink); color:#fff; font-weight:800; padding:.8em 1.3em; font-size:16px; transition:transform .15s cubic-bezier(.22,1,.36,1); }
+  .btn:hover { transform:translateY(-2px); }
+  .btn:focus-visible { outline:4px solid var(--yellow); outline-offset:3px; }
   .btn.y { background:var(--yellow); color:var(--blue); }
-  .btn.ghost { background:#fff; color:var(--ink); border:2px solid var(--ink); }
-  .btn:disabled { background:#BDBDBD; color:#fff; cursor:not-allowed; }
+  .btn.ghost { background:var(--blue-2); color:#fff; }
+  .btn:disabled { background:#7A9CC2; color:#DCE6F0; cursor:not-allowed; transform:none; }
 
-  /* lobby */
-  #lobby { padding:3vh 3vw; gap:3vw; }
-  #lobby .col { display:flex; flex-direction:column; gap:2vh; min-width:0; }
-  #lobby .join { width:min(30vw,420px); }
-  .codebox { background:#fff; border:3px solid var(--ink); padding:1.5vh 1.2vw; }
-  .codebox small { display:block; font-weight:800; color:var(--grey); letter-spacing:.1em; }
-  .codebox .code { font-size:clamp(48px,7vw,104px); font-weight:900; letter-spacing:.12em; color:var(--blue); line-height:1.05; }
-  #qr { width:100%; aspect-ratio:1; background:#fff; border:3px solid var(--ink); image-rendering:pixelated; display:block; }
-  #url { font-size:12px; color:var(--grey); word-break:break-all; }
+  /* lobby: the blue field, the code big, the players as they arrive */
+  #lobby { --u:min(1vw, 1.777vh); padding:calc(var(--u) * 3); gap:calc(var(--u) * 3.5); color:#fff; background:var(--blue); }
+  #lobby .col { display:flex; flex-direction:column; gap:calc(var(--u) * 1.6); min-width:0; }
+  #lobby .join { width:calc(var(--u) * 30); }
+  #lobby h1 { font-weight:800; font-size:calc(var(--u) * 6); line-height:1; letter-spacing:-.025em; }
+  #lobby h1 span { font-weight:400; }
+  .codebox { font-weight:700; font-size:calc(var(--u) * 1.5); }
+  .codebox .code { font-size:calc(var(--u) * 9); font-weight:800; letter-spacing:.04em; color:var(--yellow); line-height:1; font-variant-numeric:tabular-nums; }
+  #qr { width:100%; aspect-ratio:1; background:#fff; padding:calc(var(--u) * 1); image-rendering:pixelated; display:block; }
+  #url { font-size:calc(var(--u) * 1); opacity:.8; word-break:break-all; }
   #lobby .players { flex:1; }
-  h2 { font-size:15px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
-  #plist { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; align-content:start; overflow:auto; }
-  .pchip { display:flex; align-items:center; gap:8px; background:#fff; border:2px solid var(--ink); padding:6px 10px; font-weight:900; font-size:clamp(14px,1.3vw,20px); }
-  .pchip canvas { width:56px; height:32px; }
-  .pchip small { font-size:11px; color:var(--grey); margin-left:auto; }
-  .empty { color:var(--grey); font-weight:700; padding:20px 0; }
-  #lobby .tracks { width:min(36vw,520px); }
+  #lobby h2 { font-size:calc(var(--u) * 2.2); font-weight:800; letter-spacing:-.01em; }
+  #lobby h2 small { font-weight:400; font-size:.6em; opacity:.8; }
+  #plist { display:grid; grid-template-columns:repeat(auto-fill, minmax(calc(var(--u) * 15), 1fr)); gap:calc(var(--u) * .8); align-content:start; overflow:auto; }
+  .pchip { display:flex; align-items:center; gap:calc(var(--u) * .8); background:var(--blue-2); padding:calc(var(--u) * .5) calc(var(--u) * .9); font-weight:800; font-size:calc(var(--u) * 1.6); animation:pin .5s cubic-bezier(.22,1,.36,1) both; }
+  .pchip img { width:calc(var(--u) * 4.4); height:calc(var(--u) * 4.4); }
+  .pchip small { font-size:.6em; font-weight:400; opacity:.8; margin-left:auto; }
+  @keyframes pin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .empty { font-weight:700; font-size:calc(var(--u) * 1.8); opacity:.85; max-width:24ch; line-height:1.35; }
+  #lobby .tracks { width:calc(var(--u) * 33); }
   #tlist { display:flex; flex-direction:column; gap:8px; }
-  .eplan { display:flex; flex-direction:column; gap:6px; overflow:auto; }
-  .eplan div { background:#fff; border:2px solid #D6D6D6; padding:9px 12px; font-weight:900; font-size:15px; }
-  .eplan .race { background:var(--yellow); color:var(--blue); border-color:var(--yellow); }
-  .pchip img { width:46px; height:46px; }
-  .tcard { display:flex; gap:12px; align-items:center; background:#fff; border:2px solid #D6D6D6; padding:8px; text-align:left; }
-  .tcard.sel { border-color:var(--blue); box-shadow:inset 0 0 0 3px var(--blue); }
+  .eplan { display:flex; flex-direction:column; gap:calc(var(--u) * .3); overflow:auto; }
+  .eplan div { background:var(--blue-2); padding:.55em .9em; font-weight:700; font-size:calc(var(--u) * 1.3); }
+  .eplan .race { background:var(--yellow); color:var(--blue); }
+  .tcard { display:flex; gap:12px; align-items:center; background:#fff; padding:8px; text-align:left; }
   .tcard canvas { width:120px; height:75px; flex:none; }
-  .tcard b { display:block; font-size:16px; font-weight:900; }
+  .tcard b { display:block; font-size:16px; font-weight:800; }
   .tcard span { font-size:12px; color:var(--grey); }
-  .actions { display:flex; gap:8px; flex-wrap:wrap; }
-  #start { font-size:22px; flex:1; padding:.8em; }
-  #msg { color:#E4002B; font-weight:800; min-height:1.2em; }
+  .actions { display:flex; gap:calc(var(--u) * .5); flex-wrap:wrap; }
+  .tools .btn { font-size:calc(var(--u) * 1.1); padding:.6em .9em; }
+  #start, #resume { font-size:calc(var(--u) * 2); flex:1; padding:.8em; }
+  #msg { color:var(--yellow); font-weight:700; min-height:1.2em; font-size:calc(var(--u) * 1.2); }
+  @media (prefers-reduced-motion: reduce) { .pchip { animation:none; } .btn { transition:none; } }
 
   /* race */
   #race { background:var(--floor); }
   #cv { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   #cv3 { position:absolute; left:0; top:0; height:100%; width:calc(100% - min(320px, 24vw)); display:block; }
-  #abort { position:absolute; left:12px; bottom:12px; font-size:11px; padding:.5em .9em; opacity:.5; }
+  #abort { position:absolute; left:12px; bottom:12px; font-size:12px; padding:.5em .9em; opacity:.6; background:var(--ink); }
   #abort:hover { opacity:1; }
 
-  /* results */
-  #results { flex-direction:row; }
+  /* race results */
+  #results { flex-direction:row; background:var(--floor); }
   #podium { flex:1.3; min-width:0; height:100%; display:block; }
-  #rside { flex:1; display:flex; flex-direction:column; padding:4vh 3vw; gap:2vh; background:#fff; border-left:3px solid var(--ink); }
-  #rtable { display:flex; flex-direction:column; gap:6px; overflow:auto; }
-  .rrow { display:grid; grid-template-columns:54px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border:2px solid var(--ink); background:var(--floor); }
-  .rrow .rk { font-size:28px; font-weight:900; color:var(--blue); }
-  .rrow .nm { font-size:20px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  #rside { flex:1; display:flex; flex-direction:column; padding:4vh 3vw; gap:1.6vh; background:#fff; }
+  #rside h1 { font-weight:800; font-size:clamp(28px, 3.2vw, 52px); line-height:1; letter-spacing:-.02em; }
+  #rside h1 span { font-weight:400; }
+  #rfast { font-weight:700; font-size:clamp(14px, 1.2vw, 20px); background:var(--yellow); padding:.6em .8em; }
+  #rfast:empty { display:none; }
+  #rtable { display:flex; flex-direction:column; gap:4px; overflow:auto; }
+  .rrow { display:grid; grid-template-columns:54px 1fr auto; gap:10px; align-items:center; padding:10px 12px; background:var(--floor); }
+  .rrow .rk { font-size:28px; font-weight:800; color:var(--blue); }
+  .rrow .nm { font-size:20px; font-weight:800; display:flex; align-items:center; gap:8px; }
   .rrow .nm i { width:14px; height:14px; display:inline-block; }
-  .rrow .tm { font-size:22px; font-weight:900; text-align:right; }
-  .rrow .laps { grid-column:2 / 4; font-size:12px; color:var(--grey); font-weight:700; }
+  .rrow .tm { font-size:22px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; }
+  .rrow .laps { grid-column:2 / 4; font-size:13px; color:var(--grey); font-weight:700; font-variant-numeric:tabular-nums; }
   .rrow.first { background:var(--yellow); }
   #continue { font-size:22px; margin-top:auto; }
 </style>
@@ -78,28 +86,29 @@
 
 <section id="lobby" class="screen on">
   <div class="col join">
-    <div class="brand"><b>IKEA</b> QUIZ</div>
-    <div class="codebox"><small>CODICE STANZA</small><div class="code" id="code">····</div></div>
-    <img id="qr" alt="QR per entrare">
+    <h1>IKEA <span>quiz</span></h1>
+    <div class="codebox">Inquadra il codice o scrivi questo numero<div class="code" id="code">····</div></div>
+    <img id="qr" alt="Codice QR per entrare col telefono">
     <div id="url"></div>
   </div>
   <div class="col players">
-    <h2>Giocatori <span id="pcount" class="tag">0</span> <span style="color:var(--grey);font-size:12px">max 15</span></h2>
+    <h2><span id="pcount">0</span> in negozio <small>(al massimo 15)</small></h2>
     <div id="plist"></div>
-    <div class="actions" style="margin-top:auto">
-      <button class="btn ghost" id="addBots">+ 3 BOT DEMO</button>
-      <button class="btn ghost" id="addBots7">+ 7 BOT</button>
-      <button class="btn ghost" id="clearBots">RIMUOVI BOT</button>
-      <button class="btn ghost" id="demoRace">▶ SOLO UNA GARA (prova)</button>
+    <div class="actions tools" style="margin-top:auto">
+      <button class="btn ghost" id="addBots">Aggiungi 3 bot</button>
+      <button class="btn ghost" id="addBots7">Aggiungi 7 bot</button>
+      <button class="btn ghost" id="clearBots">Togli i bot</button>
+      <button class="btn ghost" id="demoRace">Prova solo una gara</button>
     </div>
   </div>
   <div class="col tracks">
-    <h2>Programma della serata</h2>
+    <h2>La serata</h2>
     <div id="eplan" class="eplan"></div>
     <div id="tlist" style="display:none"></div>
     <div id="msg"></div>
-    <div class="actions"><button class="btn y" id="start">INIZIA LA SERATA ▶</button></div>
-    <button class="btn ghost" id="resume" style="display:none">RIPRENDI LA PARTITA ▶</button>
+    <div id="imgwarn" class="imgwarn" style="display:none"></div>
+    <div class="actions"><button class="btn y" id="start">Inizia la serata</button></div>
+    <button class="btn y" id="resume" style="display:none">Riprendi la partita</button>
   </div>
 </section>
 
@@ -108,15 +117,16 @@
 <section id="race" class="screen">
   <canvas id="cv3"></canvas>
   <canvas id="cv"></canvas>
-  <button class="btn ghost" id="abort">✕ ANNULLA GARA</button>
+  <button class="btn" id="abort">Annulla la gara</button>
 </section>
 
 <section id="results" class="screen">
   <canvas id="podium"></canvas>
   <div id="rside">
-    <div class="brand" style="font-size:40px">TACK! <span class="tag" id="rtrack"></span></div>
+    <h1>Tack! <span id="rtrack"></span></h1>
+    <p id="rfast"></p>
     <div id="rtable"></div>
-    <button class="btn y" id="continue">CONTINUA ▶</button>
+    <button class="btn y" id="continue">Continua</button>
   </div>
 </section>
 
@@ -176,7 +186,7 @@ function renderLobby() {
     else if (!p.connected) { const s = document.createElement('small'); s.textContent = 'OFFLINE'; d.append(s); }
     list.append(d);
   });
-  if (!lobby.players.length) list.innerHTML = '<div class="empty">Inquadra il QR col telefono per entrare…</div>';
+  if (!lobby.players.length) list.innerHTML = '<p class="empty">Ancora nessuno. Inquadrate il codice QR col telefono per entrare.</p>';
   $('pcount').textContent = lobby.players.length;
   const n = lobby.players.length;
   $('start').disabled = n < 1;
@@ -195,14 +205,27 @@ $('demoRace').onclick = () => {
 $('start').onclick = () => socket.emit('quiz_next');            // starts the evening
 $('resume').onclick = () => { if (quizView) { show('quiz'); IKEA_QUIZ_HOST.onQuiz(quizView); } };
 function renderPlan() {
-  const races = [['showroom', 1], ['magazzino', 2], ['ristorante', 3], ['smaland', 4]], parts = ['STORIA IKEA', 'INDOVINA L\'OGGETTO', 'PERSONA O MOBILE?', 'CITTÀ SVEDESE O MOBILE?'];
-  $('eplan').innerHTML = races.map(([t], i) => `<div class="race">🏁 GARA ${i + 1} · ${TR.byId[t].name}</div><div>PARTE ${i + 1} · ${parts[i]}</div>`).join('')
-    + `<div class="race">🏁 GARA FINALE ×2 · ${TR.byId.casse.name}</div><div>🏆 CLASSIFICA FINALE</div>`;
+  const races = [['showroom', 1], ['magazzino', 2], ['ristorante', 3], ['smaland', 4]], parts = ['Storia IKEA', 'Indovina l\'oggetto', 'Persona o mobile?', 'Città svedese o mobile?'];
+  $('eplan').innerHTML = races.map(([t], i) => `<div class="race">Gara ${i + 1} · ${TR.byId[t].name}</div><div>Parte ${i + 1} · ${parts[i]}</div>`).join('')
+    + `<div class="race">Gara finale, punti doppi · ${TR.byId.casse.name}</div><div>Lo scontrino finale</div>`;
 }
 let quizView = null;
+// check that every quiz picture is on the server (a folder can get lost when uploading to GitHub)
+fetch('/quiz-images.json').then(r => r.json()).then(list => Promise.all(list.map(f => new Promise(ok => {
+  const im = new Image(); im.onload = () => ok(null); im.onerror = () => ok(f); im.src = f;
+})))).then(res => {
+  const miss = res.filter(Boolean);
+  if (!miss.length) return;
+  $('imgwarn').style.display = '';
+  $('imgwarn').innerHTML = `⚠ ${miss.length} foto del quiz non trovate sul server (${miss.slice(0, 4).join(', ')}${miss.length > 4 ? '…' : ''}).<br>Caricale su GitHub nella cartella <b>public</b> (i file che iniziano con <b>q-</b>).`;
+}).catch(() => {});
 socket.on('quiz', v => {
   quizView = v;
   if (!v.started) { if (screen === 'quiz') show('lobby'); return; }
+  if (v.stage === 'raceResults' && v.lastRace && v.lastRace.fastest) {
+    const f = v.lastRace.fastest;
+    $('rfast').textContent = `Giro più veloce: ${f.name}, ${R.fmtTime(f.time)}. +10 punti${v.lastRace.final ? '' : ' e un potere alla prima domanda della prossima parte'}.`;
+  } else if (v.stage === 'raceResults') $('rfast').textContent = '';
   if (IKEA_QUIZ_HOST.handlesStage(v.stage)) {
     if (screen !== 'quiz') show('quiz');
     IKEA_QUIZ_HOST.onQuiz(v);

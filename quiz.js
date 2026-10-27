@@ -15,7 +15,11 @@ const path = require('path');
 const DATA = require('./quiz-data');
 
 const SAVE_FILE = process.env.QUIZ_SAVE || path.join(os.tmpdir(), 'ikea-quiz-state.json');
-const RACE_POINTS = 800;                 // 1° in gara = +800 … ultimo = 0 (gara finale ×2)
+/* Points scale with the number of players (N): the best gets N × 10, then 10 less each place.
+ * Quiz: fastest right answer N×10, second (N−1)×10 … wrong or no answer 0.
+ * Race: 1st N×10 … last 10 (final race ×2). Fastest lap: +10 and a bonus power at the next part's 1st question. */
+const STEP = 10;
+const FASTEST_LAP_BONUS = 10;
 const AVATAR_ITEMS = ['lampada', 'brugola', 'polpette', 'FRAKTA_BAG', 'HOTDOG', 'SWEDISH_FLAG', 'bear', 'icecream', 'box', 'cart', 'pianta', 'sedia'];
 
 function createQuiz(ctx) {
@@ -67,7 +71,7 @@ function createQuiz(ctx) {
     saveT = setTimeout(() => {
       const data = {
         at: now(), code: game.code,
-        flow: { started: flow.started, step: flow.step, stage: flow.stage, lastRace: flow.lastRace, log: flow.log,
+        flow: { started: flow.started, step: flow.step, stage: flow.stage, lastRace: flow.lastRace, log: flow.log, finalShown: flow.finalShown, bonus: flow.bonus,
           cur: flow.cur && { ...flow.cur, ready: [...flow.cur.ready] } },
         players: players().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, avatar: p.avatar, score: p.score, history: p.history }))
       };
@@ -84,7 +88,7 @@ function createQuiz(ctx) {
         Object.assign(p, { avatar: s.avatar, score: s.score, history: s.history || [], connected: !!s.bot });
         game.players.set(p.id, p);
       }
-      Object.assign(flow, { started: true, step: d.flow.step, lastRace: d.flow.lastRace, log: d.flow.log || [] });
+      Object.assign(flow, { started: true, step: d.flow.step, lastRace: d.flow.lastRace, log: d.flow.log || [], bonus: d.flow.bonus || null });
       const st = stepObj();
       if (st && st.t === 'q') {
         flow.cur = d.flow.cur ? { ...d.flow.cur, ready: new Set(d.flow.cur.ready) } : null;
@@ -93,6 +97,7 @@ function createQuiz(ctx) {
         else if (flow.cur) setStage('reading', DATA.TIMES.reading);
         else enterStep();
       } else if (st && st.t === 'race') { flow.stage = 'raceWait'; }       // host presses AVANTI to restart that race
+      else if (st && st.t === 'final') { flow.stage = 'final'; flow.finalShown = players().length; }
       else enterStep();
       console.log(`  Partita ripristinata: passo ${flow.step + 1}/${steps.length}`);
       return true;
@@ -117,18 +122,33 @@ function createQuiz(ctx) {
     if (s.t === 'welcome') return setStage('welcome');
     if (s.t === 'part') return setStage('partIntro');
     if (s.t === 'standings') return setStage('standings');
-    if (s.t === 'final') { flow.stage = 'final'; broadcast(); save(); return; }
+    if (s.t === 'final') { flow.stage = 'final'; flow.finalShown = 0; broadcast(); save(); finalReveal(2500); return; }
     if (s.t === 'race') return startRaceStep(s);
     if (s.t === 'q') {
       const q = qData();
       flow.cur = { ready: new Set(), answers: {}, powers: {}, effects: {}, answersAt: 0,
-        shuffle: q.type === 'order' ? shuffled(q.items.length) : null };
-      const powersOn = s.q > 0;                         // powers start from the 2nd question of each part
-      if (powersOn) return setStage('powers', DATA.TIMES.powers);
+        shuffle: q.type === 'order' ? shuffled(q.items.length) : null,
+        // answers in random order (in the PowerPoint the right one was always first); PERSONA/MOBILE stays fixed
+        perm: q.type === 'choice' ? (q.answers.length > 2 ? shuffled(q.answers.length) : q.answers.map((_, i) => i)) : null };
+      // powers from the 2nd question of each part; at the 1st only for whoever made the fastest lap
+      const bonus = s.q === 0 && flow.bonus && flow.bonus.p === s.p && game.players.has(flow.bonus.id);
+      flow.cur.powerOnly = bonus ? [flow.bonus.id] : null;
+      if (s.q > 0 || bonus) return setStage('powers', DATA.TIMES.powers);
       return setStage('reading', DATA.TIMES.reading);
     }
   }
 
+  // final ranking: from the last to the first, slower and slower for the podium
+  function finalReveal(delay) {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const n = players().length;
+      if (flow.stage !== 'final' || flow.finalShown >= n) return;
+      flow.finalShown++; broadcast(); save();
+      const nextRank = n - flow.finalShown;           // rank revealed next
+      if (nextRank >= 1) finalReveal(nextRank > 3 ? 1800 : nextRank === 3 ? 3000 : nextRank === 2 ? 3500 : 5000);
+    }, delay / FAST);
+  }
   function next() {
     if (flow.step >= steps.length - 1) return;
     flow.step++;
@@ -152,7 +172,7 @@ function createQuiz(ctx) {
       case 'answering': return reveal();
       case 'race': return;                                      // the race ends on its own (or ANNULLA)
       case 'raceWait': return startRaceStep(stepObj());
-      case 'final': return;
+      case 'final': clearTimeout(timer); flow.finalShown = players().length; broadcast(); save(); return;   // AVANTI = show all
       default: return next();
     }
   }
@@ -165,7 +185,7 @@ function createQuiz(ctx) {
   }
   function reset() {
     clearTimeout(timer);
-    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [] });
+    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [], bonus: null, racePts: null });
     for (const p of players()) { p.score = 0; p.history = []; }
     try { fs.unlinkSync(SAVE_FILE); } catch (e) { /* ignore */ }
     broadcast();
@@ -187,21 +207,29 @@ function createQuiz(ctx) {
   hooks.getStartingGrid = (list) => list.slice().sort((a, b) => (b.score || 0) - (a.score || 0) || Math.random() - 0.5);
   hooks.decorateResults = (results) => {
     const r = DATA.RACES[flow.raceIndex] || {}, n = results.length, mul = r.final ? 2 : 1;
+    flow.racePts = {};
+    // fastest single lap of the race
+    let fast = null;
+    for (const x of results) for (const t of x.lapTimes || []) if (!fast || t < fast.time) fast = { id: x.playerId, name: x.name, time: t };
     for (const x of results) {
-      const pts = n > 1 ? Math.round(RACE_POINTS * (n - x.rank) / (n - 1) / 10) * 10 * mul : 0;
+      const pts = (n - x.rank + 1) * STEP * mul + (fast && fast.id === x.playerId ? FASTEST_LAP_BONUS : 0);
       const p = game.players.get(x.playerId);
-      x.pts = pts;
-      if (p) { ensure(p); p.score += pts; p.history.push({ race: flow.raceIndex, rank: x.rank, pts }); x.score = p.score; }
+      flow.racePts = flow.racePts || {}; flow.racePts[x.playerId] = pts;     // private: only the player sees it
+      if (p) { ensure(p); p.score += pts; p.history.push({ race: flow.raceIndex, rank: x.rank, pts }); }
     }
-    flow.lastRace = { final: !!r.final, results };
+    flow.lastRace = { final: !!r.final, fastest: fast, results: results.map(x => ({ playerId: x.playerId, rank: x.rank, name: x.name })) };
+    // the fastest lap earns a power at the first question of the part that follows this race
+    flow.bonus = fast && r.before ? { id: fast.id, name: fast.name, p: r.before - 1 } : null;
     flow.stage = 'raceResults'; save();
   };
   hooks.onContinue = () => { if (flow.started && (flow.stage === 'raceResults' || flow.stage === 'race')) next(); };
   hooks.applyWinnerBonus = () => {};                // race points already given by decorateResults
 
   /* ---------- powers ---------- */
+  const canPower = p => !flow.cur || !flow.cur.powerOnly || flow.cur.powerOnly.includes(p.id);
+  const powerers = () => active().filter(canPower);
   function choosePower(p, power, target) {
-    if (flow.stage !== 'powers' || !flow.cur || flow.cur.powers[p.id]) return;
+    if (flow.stage !== 'powers' || !flow.cur || flow.cur.powers[p.id] || !canPower(p)) return;
     const def = DATA.POWERS[power];
     if (power !== 'SKIP' && !def) return;
     if (def && def.kind === 'obstacle') {
@@ -210,7 +238,7 @@ function createQuiz(ctx) {
       flow.cur.powers[p.id] = { power, target };
     } else flow.cur.powers[p.id] = { power };
     broadcast(); save();
-    if (active().every(x => flow.cur.powers[x.id])) endPowers();
+    if (powerers().every(x => flow.cur.powers[x.id])) endPowers();
   }
   function endPowers() {
     if (flow.stage !== 'powers') return;
@@ -250,26 +278,29 @@ function createQuiz(ctx) {
     broadcast(); save();
     if (active().every(x => flow.cur.answers[x.id])) reveal();
   }
-  function scoreFor(q, ans, effects) {
-    if (!ans) return { pts: 0, correct: false };
-    const T = q.type === 'order' ? DATA.TIMES.order : DATA.TIMES.answer;
-    const speed = Math.max(0, Math.min(1, ans.t / T));
-    const dbl = (effects || []).some(e => e.power === 'DOPPIO') ? 2 : 1;
-    if (q.type === 'choice') {
-      const correct = ans.a === q.correct;
-      return { pts: correct ? Math.round((1000 - 500 * speed) / 10) * 10 * dbl : 0, correct };
-    }
+  function judge(q, ans, perm) {
+    if (!ans) return { correct: false, right: 0 };
+    if (q.type === 'choice') { const ok = (perm ? perm[ans.a] : ans.a) === q.correct; return { correct: ok, right: ok ? 1 : 0 }; }
     const right = ans.a.filter((v, i) => v === i).length;
-    const pts = Math.round((1000 - 500 * speed) * right / q.items.length / 10) * 10 * dbl;
-    return { pts, correct: right === q.items.length, right };
+    return { correct: right === q.items.length, right };
   }
   function reveal() {
     if (flow.stage !== 'answering' && flow.stage !== 'reading') return;
-    const q = qData(), s = stepObj(), res = {};
+    const q = qData(), s = stepObj(), res = {}, N = players().length;
+    // who is right (and for the logos question: how many in the right place)
+    for (const p of players()) res[p.id] = judge(q, flow.cur.answers[p.id], flow.cur.perm);
+    // points by speed order among the right answers: N×10, (N−1)×10, … ; wrong = 0
+    const scorers = players().filter(p => res[p.id].right > 0)
+      .sort((a, b) => res[b.id].right - res[a.id].right || flow.cur.answers[a.id].t - flow.cur.answers[b.id].t);
+    scorers.forEach((p, k) => {
+      const r = res[p.id], share = q.type === 'order' ? r.right / q.items.length : 1;
+      const dbl = (flow.cur.effects[p.id] || []).some(e => e.power === 'DOPPIO') ? 2 : 1;
+      r.pts = Math.round((N - k) * STEP * share) * dbl; r.order = k + 1;
+    });
     for (const p of players()) {
       ensure(p);
-      const r = scoreFor(q, flow.cur.answers[p.id], flow.cur.effects[p.id]);
-      p.score += r.pts; res[p.id] = r;
+      const r = res[p.id]; r.pts = r.pts || 0;
+      p.score += r.pts;
       p.history.push({ part: s.p, q: s.q, pts: r.pts, correct: r.correct });
     }
     flow.cur.results = res;
@@ -284,7 +315,7 @@ function createQuiz(ctx) {
     const stamp = flow.stageAt;
     const later = (ms, fn) => setTimeout(() => { if (flow.stageAt === stamp && flow.stage === stage) fn(); }, ms);
     for (const b of bots) {
-      if (stage === 'powers') later(rnd(1500, 7000), () => {
+      if (stage === 'powers' && canPower(b)) later(rnd(1500, 7000), () => {
         const keys = Object.keys(DATA.POWERS), k = Math.random() < 0.25 ? 'SKIP' : keys[Math.floor(Math.random() * keys.length)];
         const others = players().filter(p => p !== b);
         choosePower(b, k, others.length ? others[Math.floor(Math.random() * others.length)].id : null);
@@ -293,7 +324,7 @@ function createQuiz(ctx) {
       if (stage === 'reading') later(rnd(1500, 5000), () => setReady(b));
       if (stage === 'answering') later(rnd(1800, 11000), () => {
         const q = qData();
-        if (q.type === 'choice') answer(b, Math.random() < 0.55 ? q.correct : Math.floor(Math.random() * q.answers.length));
+        if (q.type === 'choice') answer(b, Math.random() < 0.55 ? shownCorrect(q) : Math.floor(Math.random() * q.answers.length));
         else { const a = q.items.map((_, i) => i); for (let i = 0; i < 2; i++) { const x = Math.floor(Math.random() * a.length), y = Math.floor(Math.random() * a.length); [a[x], a[y]] = [a[y], a[x]]; } answer(b, a); }
       });
     }
@@ -301,17 +332,35 @@ function createQuiz(ctx) {
 
   /* ---------- views (what each screen needs, rebuilt from server state at any time) ---------- */
   function shuffled(n) { const a = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  const shownAnswers = q => (flow.cur && flow.cur.perm ? flow.cur.perm.map(i => q.answers[i]) : q.answers);
+  const shownCorrect = q => (flow.cur && flow.cur.perm ? flow.cur.perm.indexOf(q.correct) : q.correct);
+
+  /* ---------- who may see the scores ----------
+   * During the quiz nobody sees the others' points (only their own on their phone).
+   * The ranking appears only after parts 1, 2 and 3, and at the very end (revealed from last to first). */
+  function boardVisible() {
+    const s = stepObj();
+    return flow.stage === 'standings' && s && DATA.PARTS[s.p].n <= 3;
+  }
   function standings() {
-    return players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)).map((p, i) => ({
-      id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score || 0, rank: i + 1, bot: p.bot, connected: p.connected
-    }));
+    const pub = p => ({ id: p.id, name: p.name, color: p.color, avatar: p.avatar, bot: p.bot, connected: p.connected });
+    if (flow.stage === 'final') {
+      const sorted = players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)), n = sorted.length;
+      return sorted.map((p, i) => (i + 1 > n - (flow.finalShown || 0)) ? { ...pub(p), score: p.score || 0, rank: i + 1 } : { ...pub(p), hidden: true, rank: i + 1 })
+        .map(x => x.hidden ? { ...x, id: 'h' + x.rank, name: '?', color: '#BDBDBD', avatar: null, rank: x.rank } : x);
+    }
+    if (boardVisible()) {
+      return players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)).map((p, i) => ({ ...pub(p), score: p.score || 0, rank: i + 1 }));
+    }
+    return players().map(pub);             // join order, no points, no ranking
   }
   function base() {
     const s = stepObj(), q = qData();
     const v = {
       started: flow.started, stage: flow.stage, stepIndex: flow.step, steps: steps.length,
       deadline: flow.deadline ? flow.deadline - now() : 0, total: flow.deadline ? flow.deadline - flow.stageAt : 0,
-      code: game.code, powers: DATA.POWERS, avatars: AVATAR_ITEMS, standings: standings(),
+      code: game.code, powers: DATA.POWERS, avatars: AVATAR_ITEMS, standings: standings(), boardVisible: boardVisible(),
+      final: flow.stage === 'final' ? { shown: flow.finalShown || 0, total: players().length } : null,
       plan: steps.map(x => x.t === 'race' ? { t: 'race', track: DATA.RACES[x.race].trackId, final: !!DATA.RACES[x.race].final }
                                          : x.t === 'part' ? { t: 'part', n: DATA.PARTS[x.p].n, title: DATA.PARTS[x.p].title } : { t: x.t })
     };
@@ -327,19 +376,20 @@ function createQuiz(ctx) {
     if (q) {
       const showQ = flow.stage !== 'powers';
       v.question = {
-        index: s.q + 1, type: q.type, powersOn: s.q > 0,
+        index: s.q + 1, type: q.type, powersOn: s.q > 0 || !!flow.cur.powerOnly,
         q: showQ ? q.q : null, word: showQ ? q.word || null : null, img: showQ ? q.img || null : null, hint: q.hint || null
       };
       if (flow.stage === 'answering' || flow.stage === 'reveal') {
-        if (q.type === 'choice') v.question.answers = q.answers;
+        if (q.type === 'choice') v.question.answers = shownAnswers(q);
         else v.question.items = flow.cur.shuffle.map(i => ({ id: i, img: q.items[i].img }));
       }
       if (flow.stage === 'reveal') {
-        v.question.correct = q.type === 'choice' ? q.correct : q.items.map((it, i) => ({ id: i, img: it.img, label: it.label }));
+        v.question.correct = q.type === 'choice' ? shownCorrect(q) : q.items.map((it, i) => ({ id: i, img: it.img, label: it.label }));
         v.question.revealImg = q.revealImg || q.img || null;
       }
+      v.powerOnly = flow.cur.powerOnly ? flow.cur.powerOnly.map(id => (game.players.get(id) || {}).name) : null;
       v.counts = {
-        players: active().length,
+        players: flow.stage === 'powers' ? powerers().length : active().length,
         ready: flow.cur.ready.size, answered: Object.keys(flow.cur.answers).length, powers: Object.keys(flow.cur.powers).length
       };
     }
@@ -353,7 +403,8 @@ function createQuiz(ctx) {
         id: p.id, ready: flow.cur.ready.has(p.id), answered: !!flow.cur.answers[p.id], power: !!flow.cur.powers[p.id]
       }));
       if (flow.stage === 'reveal') {
-        v.results = players().map(p => ({ id: p.id, ...flow.cur.results[p.id], a: flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null }));
+        // the TV is public: who answered what and who got it right, but never the points
+        v.results = players().map(p => { const r = flow.cur.results[p.id] || {}; return { id: p.id, correct: !!r.correct, right: r.right, a: flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null }; });
         if (q.type === 'choice') v.tally = q.answers.map((_, i) => Object.values(flow.cur.answers).filter(x => x.a === i).length);
       }
       if (flow.stage !== 'powers') {
@@ -367,11 +418,13 @@ function createQuiz(ctx) {
     ensure(p);
     const v = base();
     const st = v.standings.find(x => x.id === p.id);
-    v.me = { id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score, rank: st ? st.rank : 0 };
+    v.me = { id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score, rank: st && st.rank && !st.hidden ? st.rank : null };
+    if (flow.stage === 'raceResults' && flow.racePts) v.me.racePts = flow.racePts[p.id];
     if (flow.cur) {
       v.me.ready = flow.cur.ready.has(p.id);
       v.me.answer = flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null;
       v.me.power = flow.cur.powers[p.id] || null;
+      v.me.canPower = canPower(p);
       if (flow.stage === 'answering' || flow.stage === 'reveal') v.me.effects = flow.cur.effects[p.id] || [];
       if (flow.stage === 'reveal') v.me.result = flow.cur.results[p.id];
     }
@@ -397,7 +450,7 @@ function createQuiz(ctx) {
   // anyone leaving or coming back changes who we wait for
   function onPresence() {
     if (!flow.cur) return broadcast();
-    if (flow.stage === 'powers' && active().every(x => flow.cur.powers[x.id])) return endPowers();
+    if (flow.stage === 'powers' && powerers().every(x => flow.cur.powers[x.id])) return endPowers();
     if (flow.stage === 'reading' && active().length && active().every(x => flow.cur.ready.has(x.id))) return setStage('answering', answerTime());
     if (flow.stage === 'answering' && active().length && active().every(x => flow.cur.answers[x.id])) return reveal();
     broadcast();
