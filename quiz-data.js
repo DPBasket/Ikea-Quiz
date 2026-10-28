@@ -106,17 +106,27 @@ const RACES = [
 ];
 
 /*
- * POTERI (bonus e ostacoli) – segnaposto finché non decidi quelli definitivi.
- * kind: 'obstacle' → si sceglie un avversario   |   'bonus' → vale per te stesso
- * Per aggiungerne uno: nuova voce qui + il suo effetto in public/quiz-player.js (funzione applyEffects).
+ * POTERI (bonus e ostacoli). Prima di ogni domanda (dalla 2ª di ogni parte) ognuno vede 3 poteri estratti a caso.
+ * kind: 'obstacle' → si sceglie un avversario  |  'bonus' → vale per te
+ * cost: punti che paghi subito  ·  maxUses: quante volte in tutta la partita  ·  weightLow: esce più spesso a chi è indietro
+ * Gli effetti sul telefono sono in public/quiz-player.js (applyEffects); quelli sui punti in quiz.js (reveal).
  */
 const POWERS = {
-  GHIACCIO: { kind: 'obstacle', label: 'GHIACCIO',   desc: 'Congela lo schermo: deve toccare 6 volte per romperlo' },
-  MELMA:    { kind: 'obstacle', label: 'MELMA',      desc: 'Macchie di melma coprono le risposte: vanno pulite' },
-  SCATOLE:  { kind: 'obstacle', label: 'SCATOLONI',  desc: 'Scatoloni coprono le risposte per 4 secondi' },
-  SCUDO:    { kind: 'bonus',    label: 'SCUDO',      desc: 'Ti protegge dagli ostacoli in questa domanda' },
-  DOPPIO:   { kind: 'bonus',    label: 'PUNTI ×2',   desc: 'Se rispondi giusto, punti doppi' }
+  SCUDO:      { kind: 'bonus',    label: 'Scudo',            desc: 'Ti protegge da tutti gli ostacoli in questa domanda. Al massimo 2 volte a partita.', maxUses: 2 },
+  RUBA:       { kind: 'obstacle', label: 'Ruba i punti',     desc: 'I punti che fa in questa domanda vanno a te, lui prende 0. Se indovini prendi anche i tuoi.' },
+  SCAMBIO:    { kind: 'obstacle', label: 'Scambio punti',    desc: 'Dopo questa domanda il tuo totale e il suo si scambiano.', weightLow: true },
+  POLE:       { kind: 'bonus',    label: 'Pole position',    desc: 'Paghi 30 punti e alla prossima gara parti primo.', cost: 30 },
+  ULTIMO:     { kind: 'obstacle', label: 'In fondo alla griglia', desc: 'Paghi 20 punti e alla prossima gara lui parte ultimo.', cost: 20 },
+  RICKROLL:   { kind: 'obstacle', label: 'Rick roll',        desc: 'Gli parte un video sul telefono e finché dura non può fare nulla.' },
+  FAAAH:      { kind: 'obstacle', label: 'Faaah',            desc: 'Al primo tocco su una risposta: suono, gattino, e la risposta non vale. Poi riprova.' },
+  CLASSIFICA: { kind: 'bonus',    label: 'Sbircia la classifica', desc: 'Vedi la classifica di adesso sul tuo telefono.' },
+  DOPPIO:     { kind: 'bonus',    label: 'Punti ×2',         desc: 'Se rispondi giusto, punti doppi.' },
+  POLPETTE:   { kind: 'obstacle', label: 'Polpette',         desc: 'Polpette IKEA che vanno e vengono su tutto il suo schermo.' },
+  SCATOLE:    { kind: 'obstacle', label: 'Scatoloni',        desc: 'Scatoloni gli coprono le risposte per 4 secondi.' },
+  TOGLI:      { kind: 'bonus',    label: 'Togli una sbagliata', desc: 'Una risposta sbagliata sparisce dal tuo telefono.', needsChoices: 3 }
 };
+const POWER_OFFER = 3;          // poteri estratti per ognuno a ogni domanda
+const RICKROLL_MS = 10000;      // quanto dura il blocco del rick roll
 
 const TIMES = {
   powers: 15000,        // scelta del potere
@@ -125,4 +135,4 @@ const TIMES = {
   order: 35000          // tempo per la domanda "metti in ordine"
 };
 
-module.exports = { PARTS, RACES, POWERS, TIMES };
+module.exports = { PARTS, RACES, POWERS, POWER_OFFER, RICKROLL_MS, TIMES };

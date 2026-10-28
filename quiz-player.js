@@ -27,19 +27,25 @@
       <ol class="rules">${v.part.rules.map(r => `<li>${esc(r)}</li>`).join('')}<li>Dalla seconda domanda puoi lanciare un potere.</li></ol>`);
     if (s === 'standings' && !v.boardVisible) return center(`${big('La classifica resta segreta')}<p class="score">${m.score} punti</p><p class="note">Ora la gara finale, a punti doppi. La classifica si scopre alla fine.</p>`);
     if (s === 'standings') return center(`<p class="kick">Fine della parte ${v.part.n}</p>${big(m.rank + '° posto', 'yl')}<p class="score">${m.score} punti</p><p class="note">Nella prossima gara chi è più in alto parte davanti.</p>`);
+    if (v.tiebreak && (s === 'race' || s === 'raceResults')) return center(`<p class="kick">Gara di spareggio</p>${big(esc(v.tiebreak.names.join(' contro ')))}<p class="note">Erano a pari merito al ${v.tiebreak.rank}° posto. Corrono solo loro: guarda lo schermo.</p>`);
     if (s === 'raceWait' || s === 'raceSkipped' || s === 'raceResults' || s === 'race') return center(`${big('Guarda lo schermo')}<p class="note">La gara sta per ripartire.</p>`);
     if (s === 'final' && !m.rank) return center(`${big('Guarda lo schermo')}<p class="note">Lo scontrino finale si stampa dall'ultimo al primo. Il tuo nome non è ancora uscito.</p>`);
-    if (s === 'final') return center(`<img class="me" src="${av(m, 300)}" alt="">${big(m.rank + '°', 'yl')}<p class="score">${m.score} punti</p><p class="note">Tack! Grazie per aver giocato.</p>`);
+    if (s === 'final') return center(`<img class="me" src="${av(m, 300)}" alt="">${big(m.rank + '°' + (m.tie ? ' pari merito' : ''), 'yl')}<p class="score">${m.score} punti</p><p class="note">${m.tie ? 'Può deciderlo una gara di spareggio: tieni pronto il telefono.' : 'Tack! Grazie per aver giocato.'}</p>`);
     if (s === 'powers') return powersHtml();
     if (s === 'reading') return `
-      ${questionHtml()}
+      ${peekHtml()}${questionHtml()}
       ${m.ready ? `<p class="lockmsg">Pronto. Aspettiamo gli altri: ${v.counts.ready} di ${v.counts.players}</p>`
                 : `<button class="act" id="qready">Pronto</button><p class="note">Premi quando hai letto la domanda.</p>`}`;
-    if (s === 'answering') return `${questionHtml(true)}${q.type === 'order' ? orderHtml() : answersHtml()}`;
+    if (s === 'answering') return `${peekHtml()}${questionHtml(true)}${q.type === 'order' ? orderHtml() : answersHtml()}`;
     if (s === 'reveal') return revealHtml();
     return center('<p class="note">Un attimo…</p>');
   }
 
+  // Sbircia la classifica
+  function peekHtml() {
+    if (!v.me.peek) return '';
+    return `<details class="peek" open><summary>La classifica di adesso (la vedi solo tu)</summary><ol>${v.me.peek.map(p => `<li class="${p.me ? 'you' : ''}"><span>${p.rank}. ${esc(p.name)}</span><b>${p.score}</b></li>`).join('')}</ol></details>`;
+  }
   function questionHtml(small) {
     const q = v.question;
     if (q.word) return `<p class="note">${esc(q.q)}</p><h1 class="word">${esc(q.word)}</h1>`;
@@ -48,6 +54,7 @@
   function answersHtml() {
     const q = v.question, mine = v.me.answer, n = q.answers.length;
     return `<ol class="pans n${n}">${q.answers.map((a, i) => {
+      if (v.me.removed === i) return `<li><div class="pa gone">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>Tolta: era sbagliata</span></div></li>`;
       const cls = mine == null ? '' : mine === i ? 'picked' : 'off';
       return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${esc(a)}</span></button></li>`;
     }).join('')}</ol>
@@ -93,7 +100,7 @@
         el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
       });
     });
-    const c = $('oconfirm'); if (c) c.onclick = () => { socket.emit('quiz_answer', { a: order }); vib(30); };
+    const c = $('oconfirm'); if (c) c.onclick = () => { if (!tryAnswer(order)) return; socket.emit('quiz_answer', { a: order }); vib(30); };
   }
 
   /* ---------- powers ---------- */
@@ -113,7 +120,8 @@
         <button class="act quiet" id="pback">Scegli un altro potere</button>`;
     }
     return `<h1 class="qq left">${(v.powerOnly || []).length ? 'Potere bonus: il giro più veloce è tuo' : 'Scegli un potere'}</h1>
-      <div class="pgrid">${Object.entries(v.powers).map(([k, d]) => `<button class="pbtn ${d.kind}" data-p="${k}"><b>${esc(d.label)}</b><span>${d.kind === 'obstacle' ? 'Contro un avversario. ' : 'Per te. '}${esc(d.desc)}</span></button>`).join('')}
+      <p class="note">Ti sono usciti questi tre: ne scegli uno o nessuno.</p>
+      <div class="pgrid">${(v.me.offers || []).map(k => [k, v.powers[k]]).filter(x => x[1]).map(([k, d]) => `<button class="pbtn ${d.kind}" data-p="${k}"><b>${esc(d.label)}</b><span>${d.kind === 'obstacle' ? 'Contro un avversario. ' : 'Per te. '}${esc(d.desc)}</span>${d.cost ? `<em>Costa ${d.cost} punti</em>` : ''}</button>`).join('')}
         <button class="pbtn skip" data-p="SKIP"><b>Nessun potere</b></button></div>`;
   }
 
@@ -122,7 +130,7 @@
     const q = v.question, r = v.me.result || { pts: 0 }, mine = v.me.answer;
     const dbl = (v.me.effects || []).some(e => e.power === 'DOPPIO') ? ', punti doppi' : '';
     const head = mine == null ? `<div class="res none"><p class="pts">0</p><p>Nessuna risposta</p></div>`
-      : r.pts > 0 ? `<div class="res ok"><p class="pts">+${r.pts}</p><p>${r.correct ? 'Giusto' : `${r.right} loghi su 6 al posto giusto`}${r.order ? ` · ${r.order}° più veloce` : ''}${dbl}</p></div>`
+      : r.pts > 0 ? `<div class="res ok"><p class="pts">+${r.pts}</p><p>${r.correct ? 'Giusto' : q.type === 'order' && r.right ? `${r.right} loghi su 6 al posto giusto` : 'Sbagliato, ma con i punti rubati'}${r.order ? ` · ${r.order}° più veloce` : ''}${dbl}</p></div>`
       : `<div class="res no"><p class="pts">0</p><p>Sbagliato</p></div>`;
     let detail;
     if (q.type === 'order') {
@@ -133,51 +141,96 @@
     } else {
       detail = `<ol class="pans n${q.answers.length}">${q.answers.map((a, i) => `<li><div class="pa ${i === q.correct ? 'ok' : 'off'} ${mine === i ? 'picked' : ''}">${q.answers.length === 2 ? '' : `<span class="l">${L[i]}</span>`}<span><mark>${esc(a)}</mark></span></div></li>`).join('')}</ol>`;
     }
-    return `${head}${q.revealImg ? `<img class="pimg" src="${esc(q.revealImg)}" alt="">` : ''}${detail}
+    const nm = id => { const x = v.standings.find(p => p.id === id); return x ? esc(x.name) : '?'; };
+    const extra = [
+      r.stolen ? `Hai rubato ${r.stolen} punti.` : '',
+      r.robbedBy ? `${r.robbedBy.map(nm).join(' e ')} ti ha rubato i punti di questa domanda${r.lost ? ` (${r.lost})` : ''}.` : '',
+      r.swapped ? `Il tuo totale è stato scambiato con quello di ${nm(r.swapped)}.` : '',
+      r.swappedBy ? `${nm(r.swappedBy)} ha scambiato il suo totale col tuo.` : ''
+    ].filter(Boolean).map(t => `<p class="lockmsg">${t}</p>`).join('');
+    return `${head}${extra}${q.revealImg ? `<img class="pimg" src="${esc(q.revealImg)}" alt="">` : ''}${detail}
       <p class="note">Totale: ${v.me.score} punti. Li vedi solo tu.</p>`;
   }
 
   /* ---------- obstacles on my screen during the answers ---------- */
+  /* local media: put q-rickroll.mp4 / q-faaah.mp3 in public/ to use your own files, otherwise YouTube is used */
+  const media = { rick: null, faaah: null };
+  fetch('q-rickroll.mp4', { method: 'HEAD' }).then(r => { media.rick = r.ok; }).catch(() => { media.rick = false; });
+  fetch('q-faaah.mp3', { method: 'HEAD' }).then(r => { media.faaah = r.ok; }).catch(() => { media.faaah = false; });
+  // overlays that must survive repaints (a video would restart otherwise) live in their own layer
+  function layer() {
+    let el = $('fxlayer');
+    if (!el) { el = document.createElement('div'); el.id = 'fxlayer'; document.body.append(el); }
+    return el;
+  }
+  function clearLayer() { const el = $('fxlayer'); if (el) el.innerHTML = ''; fx.rickOn = fx.meatOn = false; }
+
+  function rickroll(ms) {
+    if (fx.rickOn) return; fx.rickOn = true;
+    const until = performance.now() + ms;
+    fx.blockUntil = until;
+    const src = media.rick
+      ? `<video src="q-rickroll.mp4" autoplay playsinline></video>`
+      : `<iframe src="https://www.youtube.com/embed/_6HzLIJPH2A?autoplay=1&playsinline=1&controls=0&rel=0" allow="autoplay; encrypted-media" title="Rick roll"></iframe>`;
+    layer().insertAdjacentHTML('beforeend', `<div class="fx-rick" id="rick">${src}<p id="rickt"></p></div>`);
+    const tick = setInterval(() => {
+      const left = until - performance.now(), t = $('rickt');
+      if (left <= 0 || !t) { clearInterval(tick); const r = $('rick'); if (r) r.remove(); fx.rickOn = false; return; }
+      t.textContent = `Rick roll da ${fx.rickFrom}: ancora ${Math.ceil(left / 1000)} s`;
+    }, 200);
+  }
+  function faaah(then) {
+    const snd = media.faaah ? `<audio src="q-faaah.mp3" autoplay></audio>`
+      : `<iframe class="hiddenframe" src="https://www.youtube.com/embed/nh49oWrwFhM?autoplay=1&controls=0" allow="autoplay" title="faaah"></iframe>`;
+    layer().insertAdjacentHTML('beforeend', `<div class="fx-faaah" id="faaah"><img src="q-faaah.jpg" alt="">${snd}</div>`);
+    vib([200, 60, 200]);
+    setTimeout(() => { const el = $('faaah'); if (el) el.remove(); then(); }, 2600);
+  }
+  function meatballs() {
+    if (fx.meatOn) return; fx.meatOn = true;
+    const balls = [...Array(10).keys()].map(i => `<i style="--x:${(i * 37) % 90}vw;--y:${(i * 53) % 80 + 8}vh;--d:${3 + (i % 4) * 1.1}s;--dl:${-(i * .7)}s;--s:${60 + (i % 3) * 26}px"></i>`).join('');
+    layer().insertAdjacentHTML('beforeend', `<div class="fx-meat" id="meat">${balls}</div>`);
+  }
+
   function applyEffects() {
-    const qc = $('qc'); if (!qc || v.stage !== 'answering') return;
+    const qc = $('qc');
+    if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering') clearLayer(); return; }
     const list = (v.me.effects || []);
+    const on = p => list.find(e => e.power === p && !e.blocked);
     if (fx.key !== v.stepIndex) {
-      fx.key = v.stepIndex; fx.shown = false; fx.msgUntil = 0;
-      fx.ice = list.some(e => e.power === 'GHIACCIO' && !e.blocked) ? 6 : 0;
-      const slime = list.filter(e => e.power === 'MELMA' && !e.blocked).length;
-      fx.blobs = slime ? [...Array(3 + 2 * slime).keys()].map(i => ({ id: i, x: 5 + Math.random() * 65, y: 30 + Math.random() * 55, r: Math.random() * 40 - 20 })) : [];
-      fx.boxesUntil = list.some(e => e.power === 'SCATOLE' && !e.blocked) ? performance.now() + 4000 : 0;
+      fx.key = v.stepIndex; fx.shown = false; fx.msgUntil = 0; clearLayer();
+      fx.boxesUntil = on('SCATOLE') ? performance.now() + 4000 : 0;
+      fx.faaah = !!on('FAAAH');
+      const rr = on('RICKROLL');
+      if (rr) { const f = v.standings.find(x => x.id === rr.from); fx.rickFrom = f ? f.name : '?'; rickroll(v.rickrollMs || 10000); }
+      if (on('POLPETTE')) meatballs();
     }
-    if (v.me.answer != null) return;
+    if (v.me.answer != null) { clearLayer(); return; }
     const names = list.filter(e => !e.self).map(e => {
-      const f = v.standings.find(s => s.id === e.from);
+      const f = v.standings.find(x => x.id === e.from);
       return (v.powers[e.power] ? v.powers[e.power].label : e.power) + ' da ' + (f ? f.name : '?') + (e.blocked ? ', fermato dallo scudo' : '');
     });
     // banner with who hit you: visible only for the first 2 seconds
     if (!fx.msgUntil) { fx.msgUntil = performance.now() + 2000; setTimeout(() => { if (fx.key === v.stepIndex) paint(true); }, 2050); }
     if (names.length && performance.now() < fx.msgUntil) qc.insertAdjacentHTML('beforeend', `<div class="fxmsg ${list.every(e => e.blocked || e.self) ? 'good' : ''}">${esc(names.join(' · '))}</div>`);
     if (!fx.shown && names.length) { fx.shown = true; vib([80, 40, 80]); }
-    if (fx.blobs.length) fx.blobs.forEach(b => qc.insertAdjacentHTML('beforeend',
-      `<div class="blob" data-blob="${b.id}" style="left:${b.x}%;top:${b.y}%;transform:rotate(${b.r}deg)">Melma<br>toccala</div>`));
     if (fx.boxesUntil > performance.now()) {
       const pans = qc.querySelector('.pans, .olist');
       if (pans) {
         const r = pans.getBoundingClientRect(), qr = qc.getBoundingClientRect();
-        const n = 6;
-        for (let i = 0; i < n; i++) {
+        for (let i = 0; i < 6; i++) {
           const w = r.width / 2, h = r.height / 3;
           qc.insertAdjacentHTML('beforeend', `<div class="cbox" style="left:${r.left - qr.left + (i % 2) * w}px;top:${r.top - qr.top + qc.scrollTop + Math.floor(i / 2) * h}px;width:${w}px;height:${h}px">DAJLIEN</div>`);
         }
         setTimeout(() => { if (fx.key === v.stepIndex) paint(true); }, fx.boxesUntil - performance.now() + 30);
       }
     }
-    if (fx.ice > 0) qc.insertAdjacentHTML('beforeend', `<div class="fx fx-ice" id="ice"><div>Ghiaccio</div><div class="cr">Tocca ancora ${fx.ice} volte per romperlo</div>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none">${[...Array(6 - fx.ice).keys()].map(i => `<path d="M${20 + i * 13} ${10 + (i * 37) % 60} l${(i % 2 ? -1 : 1) * 18} 22 l-8 14 l14 20" stroke="#fff" stroke-width="1.2" fill="none"/>`).join('')}</svg></div>`);
-    const ice = $('ice');
-    if (ice) ice.addEventListener('pointerdown', e => { e.preventDefault(); fx.ice--; vib(15); paint(true); });
-    qc.querySelectorAll('[data-blob]').forEach(b => b.addEventListener('pointerdown', e => {
-      e.preventDefault(); e.stopPropagation(); fx.blobs = fx.blobs.filter(x => x.id !== Number(b.dataset.blob)); vib(10); paint(true);
-    }));
+  }
+  // the answer tap goes through the obstacles first (rick roll blocks it, faaah eats the first one)
+  function tryAnswer(a) {
+    if (performance.now() < (fx.blockUntil || 0) && fx.key === v.stepIndex) { vib(40); return false; }
+    if (fx.faaah && fx.key === v.stepIndex) { fx.faaah = false; faaah(() => {}); return false; }
+    return true;
   }
 
   /* ---------- paint ---------- */
@@ -190,6 +243,7 @@
     document.querySelectorAll('#quiz .pa[data-a]').forEach(b => b.addEventListener('pointerdown', e => {
       e.preventDefault();
       if (v.me.answer != null || v.stage !== 'answering') return;
+      if (!tryAnswer(Number(b.dataset.a))) return;
       socket.emit('quiz_answer', { a: Number(b.dataset.a) }); vib(30);
       v.me.answer = Number(b.dataset.a); paint(true);            // optimistic: lock immediately
     }));
@@ -217,10 +271,11 @@
       if (v.stage !== 'powers') pickPower = null;
       // during the answers only my own state matters (the obstacles must not reset when others answer)
       const live = v.stage === 'answering' ? [] : [v.counts, v.standings.length];
-      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, live]);
+      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, v.me.tie, !!v.tiebreak, live]);
       if (key !== lastKey) { lastKey = key; paint(prevStage === v.stage + v.stepIndex); }
       if (prevStage !== v.stage + v.stepIndex && (v.stage === 'answering' || v.stage === 'powers')) vib(40);
     },
-    handlesStage(stage) { return !['race', 'raceResults'].includes(stage); }
+    // during a tie-break only the tied players race; the others keep the quiz screen
+    handlesStage(stage, view) { return !['race', 'raceResults'].includes(stage) || !!(view && view.tiebreak && view.me && !view.tiebreak.ids.includes(view.me.id)); }
   };
 })();

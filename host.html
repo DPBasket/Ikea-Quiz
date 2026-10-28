@@ -168,7 +168,7 @@ function renderTracks() {
     const b = document.createElement('button'); b.className = 'tcard' + (t.id === selTrack ? ' sel' : '');
     const c = document.createElement('canvas'); c.width = 240; c.height = 150;
     c.getContext('2d').drawImage(R.trackCanvas(t, 0.3), 0, 0, 240, 150);
-    const d = document.createElement('div'); d.innerHTML = `<b>${t.name}</b><span>${t.desc} · ${t.laps || 2} giri</span>`;
+    const d = document.createElement('div'); d.innerHTML = `<b>${t.name}</b><span>${t.desc} · ${t.open ? 'da A a B' : (t.laps || 2) + ' giri'}</span>`;
     b.append(c, d);
     b.onclick = () => { selTrack = t.id; socket.emit('select_track', { trackId: t.id }); renderTracks(); };
     box.append(b);
@@ -225,6 +225,9 @@ socket.on('quiz', v => {
   if (v.stage === 'raceResults' && v.lastRace && v.lastRace.fastest) {
     const f = v.lastRace.fastest;
     $('rfast').textContent = `Giro più veloce: ${f.name}, ${R.fmtTime(f.time)}. +10 punti${v.lastRace.final ? '' : ' e un potere alla prima domanda della prossima parte'}.`;
+  } else if (v.stage === 'raceResults' && v.lastRace && v.lastRace.tiebreak) {
+    const w = v.lastRace.results[0];
+    $('rfast').textContent = `Spareggio vinto da ${w ? w.name : ''}. Premi Continua per la classifica finale.`;
   } else if (v.stage === 'raceResults') $('rfast').textContent = '';
   if (IKEA_QUIZ_HOST.handlesStage(v.stage)) {
     if (screen !== 'quiz') show('quiz');
@@ -332,7 +335,7 @@ function drawHud(now, cw, ch, panel) {
       ctx.font = `700 ${Math.min(12, rowH * 0.24)}px Verdana, sans-serif`; ctx.fillStyle = '#767676';
       if (p.fin) { ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '900 14px Verdana, sans-serif'; ctx.fillText(R.fmtTime(p.ft), cw - 12, y + rowH / 2); }
       else {
-        ctx.fillText(`GIRO ${Math.min(race.laps, p.l + 1)}/${race.laps}`, px + 68, y + rowH / 2 + 10);
+        ctx.fillText(race.track.open ? 'DA A A B' : `GIRO ${Math.min(race.laps, p.l + 1)}/${race.laps}`, px + 68, y + rowH / 2 + 10);
         if (p.it) R.drawItem(ctx, p.it, cw - 26, y + rowH / 2, 1.2);
       }
     });

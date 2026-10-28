@@ -110,10 +110,16 @@ const game = {
   track: TR.list[0],
   players: new Map(),
   boxes: [], projectiles: [], traps: [], events: [], drops: [],
-  goAt: 0, raceStart: 0, finishedCount: 0, nextEventAt: 0, order: [], results: null
+  goAt: 0, raceStart: 0, finishedCount: 0, nextEventAt: 0, order: [], results: null,
+  racing: null                  // ids in this race (tie-break: only the tied players); null = everybody
 };
 
-const racers = () => [...game.players.values()].filter(p => !p.finished);
+const inRace = p => !game.racing || game.racing.has(p.id);
+const entrants = () => [...game.players.values()].filter(inRace);
+const racers = () => entrants().filter(p => !p.finished);
+// level of a car on a track with bridges (0 ground, 1 bridge deck), and the query that keeps it on its own road
+const lvlQ = p => ({ z: p.lvl || 0, s: p.lastS });
+const sameLevel = (a, b) => Math.abs((a.lvl || 0) - (b.lvl || 0)) < 0.5;
 const colorTaken = c => [...game.players.values()].some(p => p.color === c);
 
 function newPlayer(o) {
@@ -127,7 +133,7 @@ function resetRacer(p) {
     finished: false, finishTime: null, rank: 0, place: 0, item: null, itemReadyAt: 0, onTrack: true,
     boostUntil: 0, boostMul: 1, boostKind: 0, slowUntil: 0, slowMul: 1, slideUntil: 0, spinDir: 1,
     stunUntil: 0, inviUntil: 0, rocketUntil: 0, ghostUntil: 0, jumpUntil: 0, jumpStart: 0, jumpDur: 0, airborne: false, trick: false, throwsLeft: 0,
-    stuckT: 0, botItemAt: 0, botThrowAt: 0, botLane: rnd(-0.3, 0.3), botSkill: rnd(0.86, 1),
+    stuckT: 0, lostT: 0, lvl: 0, botItemAt: 0, botThrowAt: 0, botLane: rnd(-0.3, 0.3), botSkill: rnd(0.86, 1),
     input: { gas: false, steer: 0, assist: true }
   });
 }
@@ -142,8 +148,8 @@ const broadcastLobby = () => io.emit('lobby', lobbyPayload());
 
 function raceInfo(ms) {
   return {
-    trackId: game.trackId, ms, laps: lapsOf(),
-    players: [...game.players.values()].map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, grid: p.place }))
+    trackId: game.trackId, ms, laps: lapsOf(), ids: game.racing ? [...game.racing] : null,
+    players: entrants().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, grid: p.place }))
   };
 }
 
@@ -158,21 +164,24 @@ function addBots(n) {
 }
 
 /* ---------- race lifecycle ---------- */
-function startRace(trackId) {
+function startRace(trackId, ids) {
   if (game.phase !== 'lobby') return 'Gara già in corso';
-  const list = [...game.players.values()];
-  if (list.length < 2) return 'Servono almeno 2 giocatori per partire';
+  game.racing = ids && ids.length ? new Set(ids) : null;
+  const list = entrants();
+  if (list.length < 2) { game.racing = null; return 'Servono almeno 2 giocatori per partire'; }
   const tr = TR.byId[trackId] || game.track;
   game.track = tr; game.trackId = tr.id;
+  for (const p of game.players.values()) resetRacer(p);
   const grid = hooks.getStartingGrid(list);
   grid.forEach((p, i) => {
     resetRacer(p);
     const row = Math.floor(i / 3), col = i % 3;
-    const s = tr.L - 60 - row * 52 - col * 14;
+    // a loop starts just behind the line at s = 0 (= L); an A→B track behind its start line
+    const s = (tr.closed ? tr.L : tr.startS) - 60 - row * 52 - col * 14;
     const pt = TR.pointAt(tr.main, s);
     const off = (col - 1) * Math.min(36, pt.w / 3.4);
     p.x = pt.x - Math.sin(pt.ang) * off; p.y = pt.y + Math.cos(pt.ang) * off; p.h = pt.ang;
-    p.lastS = s; p.prog = s - tr.L; p.place = i + 1;
+    p.lastS = s; p.prog = s - (tr.closed ? tr.L : tr.startS); p.place = i + 1; p.lvl = pt.z || 0;
   });
   Object.assign(game, { boxes: makeBoxRows(tr), projectiles: [], traps: [], events: [], drops: [], finishedCount: 0, results: null });
   game.phase = 'countdown';
@@ -187,7 +196,7 @@ function finishPlayer(p, now) {
   p.finishTime = now - game.raceStart;
   p.rank = ++game.finishedCount;
   p.item = null;
-  const N = game.players.size;
+  const N = entrants().length;
   p.throwsLeft = Math.max(1, Math.round(4 - 3 * (p.rank - 1) / Math.max(1, N - 1)));   // 1st=4 … last=1
   p.botThrowAt = now + rnd(1500, 3000);
   if (p.socketId) io.to(p.socketId).emit('sabotage_start', { rank: p.rank, throws: p.throwsLeft, time: p.finishTime });
@@ -200,7 +209,7 @@ function endRace(now) {
   if (game.phase !== 'race') return;
   const rest = racers().sort((a, b) => b.prog - a.prog);
   rest.forEach(p => { p.rank = ++game.finishedCount; p.finishTime = null; });
-  const results = [...game.players.values()].sort((a, b) => a.rank - b.rank).map(p => ({
+  const results = entrants().sort((a, b) => a.rank - b.rank).map(p => ({
     playerId: p.id, rank: p.rank, time: p.finishTime, name: p.name, color: p.color, bot: p.bot, lapTimes: p.lapTimes.slice()
   }));
   game.phase = 'results';
@@ -213,7 +222,7 @@ function endRace(now) {
 }
 
 function backToLobby() {
-  game.phase = 'lobby';
+  game.phase = 'lobby'; game.racing = null;
   Object.assign(game, { boxes: [], projectiles: [], traps: [], events: [], drops: [] });
   for (const p of game.players.values()) resetRacer(p);
   // players are never removed: whoever lost the connection comes back with everything intact
@@ -237,7 +246,7 @@ function makeBoxRows(tr) {
 const STRONG = { PILLOW_RED: 1, PILLOW_BLUE: 1, HOTDOG: 1, CART: 1, SWEDISH_FLAG: 1, FRAKTA_BAG: 1 };
 const SPEED = { KOTTBULLAR_1: 1, KOTTBULLAR_GOLD: 1 };     // speed boosts: much more frequent at the back, to catch up
 function randomItem(p) {
-  const n = Math.max(1, game.players.size - 1), f = p ? (p.place - 1) / n : 0.5;    // 0 = leader, 1 = last
+  const n = Math.max(1, entrants().length - 1), f = p ? (p.place - 1) / n : 0.5;    // 0 = leader, 1 = last
   const w = Object.entries(TR.ITEMS)
     .filter(([k]) => !(k === 'PILLOW_BLUE' && p && p.place === 1))          // the leader never gets the blue pillow
     .map(([k, v]) => [k, v.weight * (SPEED[k] ? 0.5 + 2.5 * f : STRONG[k] ? 0.35 + 1.6 * f : 1.5 - 1.0 * f)]);
@@ -268,12 +277,12 @@ function useItem(p, now) {
     case 'KOTTBULLAR_1': boost(p, now, 2000, 1.18, 1); break;
     case 'KOTTBULLAR_GOLD': boost(p, now, 6000, 1.18, 3); break;           // same push, 3× longer
     case 'PILLOW_GREEN':
-      game.projectiles.push({ id: uid(), type: 'green', owner: p.id, x: p.x + fx * 18, y: p.y + fy * 18, h: p.h,
+      game.projectiles.push({ id: uid(), type: 'green', owner: p.id, lvl: p.lvl || 0, x: p.x + fx * 18, y: p.y + fy * 18, h: p.h,
         vx: fx * 620 + p.vx * 0.3, vy: fy * 620 + p.vy * 0.3, age: 0, life: 2.2 });
       break;
     case 'PILLOW_RED': {
       const t = targetAhead(p);
-      game.projectiles.push({ id: uid(), type: 'red', owner: p.id, target: t ? t.id : null, x: p.x + fx * 18, y: p.y + fy * 18,
+      game.projectiles.push({ id: uid(), type: 'red', owner: p.id, lvl: p.lvl || 0, target: t ? t.id : null, x: p.x + fx * 18, y: p.y + fy * 18,
         h: p.h, sp: 500, vx: fx * 500, vy: fy * 500, age: 0, life: 4.5 });
       break;
     }
@@ -285,12 +294,12 @@ function useItem(p, now) {
       break;
     }
     case 'MASH_POTATO':
-      game.traps.push({ id: uid(), type: 'mash', x: p.x - fx * 32, y: p.y - fy * 32, r: 18, armAt: now + 250 }); break;
+      game.traps.push({ id: uid(), type: 'mash', lvl: p.lvl || 0, x: p.x - fx * 32, y: p.y - fy * 32, r: 18, armAt: now + 250 }); break;
     case 'DAJLIEN_BOX':
-      game.traps.push({ id: uid(), type: 'box', x: p.x - fx * 32, y: p.y - fy * 32, r: 16, armAt: now + 250 }); break;
+      game.traps.push({ id: uid(), type: 'box', lvl: p.lvl || 0, x: p.x - fx * 32, y: p.y - fy * 32, r: 16, armAt: now + 250 }); break;
     case 'HOTDOG': p.inviUntil = now + 8000; p.slowUntil = p.slideUntil = p.stunUntil = 0; break;   // like the Mario Kart star: also cancels a hit in progress
     case 'CART':                       // rocket cart: 5.5 s, drives itself along the road, whoever you touch is stopped
-      p.rocketUntil = now + 5500; p.slowUntil = p.slideUntil = p.stunUntil = 0;
+      p.rocketUntil = now + 5000; p.slowUntil = p.slideUntil = p.stunUntil = 0;
       io.emit('fx', { k: 'flame', x: r1(p.x), y: r1(p.y), h: p.h });
       break;
     case 'FRAKTA_BAG': p.ghostUntil = now + 3000; break;
@@ -343,7 +352,7 @@ function physics(p, dt, now, tr) {
   }
   const fx = Math.cos(p.h), fy = Math.sin(p.h);
   let fwd = p.vx * fx + p.vy * fy, lat = -p.vx * fy + p.vy * fx;
-  p.onTrack = jumping || TR.clearance(tr, p.x, p.y) < 4;
+  p.onTrack = jumping || TR.clearance(tr, p.x, p.y, lvlQ(p)) < 4;
   const boosting = now < p.boostUntil;
   let max = CAR.maxSpeed * (tr.speed || 1);
   if (boosting) max *= p.boostMul;
@@ -369,7 +378,7 @@ function physics(p, dt, now, tr) {
 
 // the edges of the road are solid walls (shelves, partitions): slide along them
 function wallCollide(p, tr) {
-  const e = TR.nearestEdge(tr, p.x, p.y), lim = e.hw + TR.shoulderAt(e) - CAR.r;
+  const e = TR.nearestEdge(tr, p.x, p.y, lvlQ(p)), lim = e.hw + TR.shoulderAt(e) - CAR.r;
   if (e.d <= lim || e.d < 0.001) return;
   const nx = (p.x - e.px) / e.d, ny = (p.y - e.py) / e.d;
   p.x = e.px + nx * lim; p.y = e.py + ny * lim;
@@ -383,7 +392,7 @@ function wallCollide(p, tr) {
 
 // steering assist: keeps your lane and follows the road ahead, away from the walls
 function assistSteer(p, tr, center) {
-  const e = TR.nearestEdge(tr, p.x, p.y);
+  const e = TR.nearestEdge(tr, p.x, p.y, lvlQ(p));
   if (!center && tr.branch && e !== undefined && TR.projectPath(tr.branch, p.x, p.y).d < TR.projectPath(tr.main, p.x, p.y).d) return 0;
   const spd = Math.hypot(p.vx, p.vy);
   const q = TR.pointAt(tr.main, p.lastS), qn = [-Math.sin(q.ang), Math.cos(q.ang)];
@@ -416,7 +425,7 @@ function carCollisions(list, now) {
   const R = CAR.r;
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j];
-    if (now < a.ghostUntil || now < b.ghostUntil || now < a.jumpUntil || now < b.jumpUntil) continue;
+    if (now < a.ghostUntil || now < b.ghostUntil || now < a.jumpUntil || now < b.jumpUntil || !sameLevel(a, b)) continue;
     const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
     if (d >= 2 * R || d < 0.01) continue;
     const nx = dx / d, ny = dy / d, ov = (2 * R - d) / 2;
@@ -438,14 +447,15 @@ function carCollisions(list, now) {
 function eventObstacles(now) {
   const out = [];
   for (const e of game.events) {
-    if (e.type === 'forklift') out.push({ x: e.x, y: e.y, r: 26, ev: 'forklift' });
-    else if (e.type === 'cart') out.push({ x: e.x, y: e.y, r: 16, ev: 'cart' });
-    else if (e.type === 'shelf' && now >= e.warnUntil) for (const c of e.circles) out.push({ x: c.x, y: c.y, r: c.r, ev: 'shelf' });
+    if (e.type === 'forklift') out.push({ x: e.x, y: e.y, r: 26, ev: 'forklift', lvl: e.lvl });
+    else if (e.type === 'cart') out.push({ x: e.x, y: e.y, r: 16, ev: 'cart', lvl: e.lvl });
+    else if (e.type === 'shelf' && now >= e.warnUntil) for (const c of e.circles) out.push({ x: c.x, y: c.y, r: c.r, ev: 'shelf', lvl: e.lvl });
   }
   return out;
 }
 
 function collideCircle(p, o, now) {
+  if (!sameLevel(p, o)) return;
   const dx = p.x - o.x, dy = p.y - o.y, d = Math.hypot(dx, dy), rr = o.r + CAR.r;
   if (d >= rr || d < 0.001) return;
   if (now < p.inviUntil || now < p.jumpUntil || now < (p.rocketUntil || 0)) return;    // hot dog / rocket pass through everything
@@ -506,6 +516,11 @@ function spawnEvent(now) {
       break;
     }
   }
+  if (ev && tr.layered && ['forklift', 'shelf', 'cart'].includes(type)) {
+    const lv = TR.progressS(tr, ev.x, ev.y, { s: ev.s != null ? ev.s : who.lastS + 500 });
+    ev.lvl = TR.levelAt(tr, lv.s);
+    if (type !== 'cart' && ev.lvl > 0.05) ev = null;            // no forklifts / falling shelves on the bridges
+  }
   if (ev) { ev.id = uid(); game.events.push(ev); }
   io.emit('fx', { k: 'event', ev: type });
 }
@@ -534,6 +549,7 @@ function updateEvents(now, dt, tr) {
       const pt = TR.pointAt(tr.main, e.s), off = e.off || 0;
       e.x = pt.x - Math.sin(pt.ang) * off; e.y = pt.y + Math.cos(pt.ang) * off;
       e.a = e.type === 'cart' ? pt.ang + Math.PI : pt.ang;
+      e.lvl = pt.z || 0;
       if (e.type === 'cleaning') {
         const before = game.traps.length;
         game.traps = game.traps.filter(t => Math.hypot(t.x - e.x, t.y - e.y) > pt.w / 2 + 10);
@@ -565,7 +581,7 @@ function botThink(p, now, dt, tr) {
   if (spd < 20 && now > p.stunUntil) p.stuckT += dt; else p.stuckT = 0;
   if (p.stuckT > 1.6) {
     const pt = TR.pointAt(tr.main, s);
-    p.x = pt.x; p.y = pt.y; p.h = pt.ang; p.vx = p.vy = 0; p.stuckT = 0;
+    p.x = pt.x; p.y = pt.y; p.h = pt.ang; p.vx = p.vy = 0; p.stuckT = 0; p.lvl = pt.z || 0;
   }
   if (p.item && !p.botItemAt) p.botItemAt = now + rnd(1500, 4000);
   if (p.item && now >= p.botItemAt) { p.botItemAt = 0; useItem(p, now); }
@@ -585,7 +601,9 @@ function throwItem(p, type, x, y, now) {
   if (game.phase !== 'race' || !p.finished || p.throwsLeft <= 0) return;
   if (!['mash', 'pillow', 'box'].includes(type)) return;
   x = clamp(+x || 0, 0, TR.WORLD.w); y = clamp(+y || 0, 0, TR.WORLD.h);
-  game.drops.push({ id: uid(), type, x, y, at: now + 700, by: p.id });
+  // on a track with bridges a throw lands on the top level where it falls
+  const lvl = game.track.layered ? Math.max(0, ...game.track.main.pts.filter(q => Math.hypot(q.x - x, q.y - y) < q.w / 2 + 10).map(q => q.z || 0)) : 0;
+  game.drops.push({ id: uid(), type, x, y, at: now + 700, by: p.id, lvl });
   p.throwsLeft--;
   io.emit('sabotage_throw', { playerId: p.id, type, x: r1(x), y: r1(y), left: p.throwsLeft });
 }
@@ -594,10 +612,10 @@ function updateDrops(now) {
     if (now < d.at) continue;
     d.dead = true;
     if (d.type === 'pillow') {
-      for (const p of racers()) if (Math.hypot(p.x - d.x, p.y - d.y) < 50 && now >= p.jumpUntil) hit(p, 'pillow', now);
+      for (const p of racers()) if (Math.hypot(p.x - d.x, p.y - d.y) < 50 && now >= p.jumpUntil && sameLevel(p, d)) hit(p, 'pillow', now);
       io.emit('fx', { k: 'splash', x: r1(d.x), y: r1(d.y) });
     } else {
-      game.traps.push({ id: uid(), type: d.type, x: d.x, y: d.y, r: d.type === 'box' ? 16 : 18, armAt: now });
+      game.traps.push({ id: uid(), type: d.type, x: d.x, y: d.y, r: d.type === 'box' ? 16 : 18, armAt: now, lvl: d.lvl || 0 });
     }
   }
   game.drops = game.drops.filter(d => !d.dead);
@@ -605,7 +623,7 @@ function updateDrops(now) {
 
 /* ---------- main step ---------- */
 function rankAll() {
-  const arr = [...game.players.values()];
+  const arr = entrants();
   arr.sort((a, b) => (a.finished && b.finished) ? a.rank - b.rank : a.finished ? -1 : b.finished ? 1 : b.prog - a.prog);
   arr.forEach((p, i) => { p.place = i + 1; });
   game.order = arr.map(p => p.id);
@@ -629,7 +647,7 @@ function step(now, dt) {
         p.trick = false;
       }
       for (const rp of tr.ramps) {
-        let ds = p.lastS - rp.s; if (ds > L / 2) ds -= L; if (ds < -L / 2) ds += L;
+        let ds = p.lastS - rp.s; if (tr.closed) { if (ds > L / 2) ds -= L; if (ds < -L / 2) ds += L; }
         if (ds < 0 || ds > 30 || Math.hypot(p.x - rp.x, p.y - rp.y) > rp.w / 2 + 30) continue;
         const spd = Math.hypot(p.vx, p.vy);
         p.jumpDur = Math.round(clamp(450 + spd * 2.0, 750, 1100));
@@ -646,7 +664,7 @@ function step(now, dt) {
     }
     // item boxes
     for (const b of game.boxes) {
-      if (!b.active || Math.hypot(p.x - b.x, p.y - b.y) > 26) continue;
+      if (!b.active || Math.hypot(p.x - b.x, p.y - b.y) > 26 || (p.lvl || 0) > 0.5) continue;
       b.active = false; b.respawnAt = now + 500;            // the box breaks even if you already hold an item
       io.emit('fx', { k: 'box', x: r1(b.x), y: r1(b.y) });
       if (!p.item) {
@@ -657,19 +675,30 @@ function step(now, dt) {
     // traps
     if (now >= p.jumpUntil && now >= p.ghostUntil) {
       for (const t of game.traps) {
-        if (t.dead || now < t.armAt || Math.hypot(p.x - t.x, p.y - t.y) > t.r + 11) continue;
+        if (t.dead || now < t.armAt || Math.hypot(p.x - t.x, p.y - t.y) > t.r + 11 || !sameLevel(p, t)) continue;
         t.dead = true;
         if (now >= p.inviUntil) hit(p, t.type === 'mash' ? 'mash' : 'box', now);
       }
     }
     // lap progress (per-tick jump cap → cutting across the carpet doesn't pay)
-    const pr = TR.progressS(tr, p.x, p.y);
+    const pr = TR.progressS(tr, p.x, p.y, lvlQ(p));
     let ds = pr.s - p.lastS;
-    if (ds > L / 2) ds -= L; else if (ds < -L / 2) ds += L;
+    if (tr.closed) { if (ds > L / 2) ds -= L; else if (ds < -L / 2) ds += L; }
     const cap = Math.hypot(p.vx, p.vy) * dt * 3.5 + 10;
     p.prog += clamp(ds, -cap, cap);
-    p.lastS = pr.s;
-    if (p.prog >= (p.lap + 1) * L) {
+    p.lastS = tr.closed ? pr.s : p.lastS + clamp(ds, -cap, cap);
+    if (tr.layered) {
+      p.lvl = TR.levelAt(tr, p.lastS);
+      // turned into the crossing road at the level crossing? (or lost somewhere) → back on your road
+      if (pr.d > pr.hw + TR.SHOULDER + 40 && now >= p.jumpUntil) p.lostT += dt; else p.lostT = 0;
+      if (p.lostT > 1.2) {
+        const pt = TR.pointAt(tr.main, p.lastS);
+        p.x = pt.x; p.y = pt.y; p.h = pt.ang; p.vx = p.vy = 0; p.lostT = 0; p.lvl = pt.z || 0;
+        p.ghostUntil = Math.max(p.ghostUntil, now + 1500);
+        io.emit('fx', { k: 'respawn', id: p.id, x: r1(p.x), y: r1(p.y) });
+      }
+    }
+    if (p.prog >= (p.lap + 1) * tr.lapL) {
       const lt = now - p.lapStart;
       p.lapTimes.push(lt); p.lapStart = now; p.lap++;
       io.emit('lap_completed', { playerId: p.id, lap: p.lap, time: lt });
@@ -708,7 +737,7 @@ function step(now, dt) {
     if (q.age > q.life || q.x < 0 || q.y < 0 || q.x > TR.WORLD.w || q.y > TR.WORLD.h) { q.dead = true; continue; }
     if (obs.some(o => Math.hypot(q.x - o.x, q.y - o.y) < o.r + 6)) { q.dead = true; io.emit('fx', { k: 'poof', x: r1(q.x), y: r1(q.y) }); continue; }
     for (const p of racers()) {
-      if ((p.id === q.owner && q.age < 0.5) || now < p.jumpUntil || now < p.ghostUntil) continue;
+      if ((p.id === q.owner && q.age < 0.5) || now < p.jumpUntil || now < p.ghostUntil || !sameLevel(p, q)) continue;
       if (Math.hypot(p.x - q.x, p.y - q.y) < 22) { q.dead = true; hit(p, 'pillow', now); break; }
     }
   }
@@ -718,7 +747,7 @@ function step(now, dt) {
   updateEvents(now, dt, tr);
   if (now >= game.nextEventAt) { spawnEvent(now); game.nextEventAt = now + rnd(9000, 14000); }
   for (const b of game.boxes) if (!b.active && now >= b.respawnAt) b.active = true;
-  for (const p of game.players.values()) if (p.bot && p.finished) botSabotage(p, now);
+  for (const p of entrants()) if (p.bot && p.finished) botSabotage(p, now);
   rankAll();
   if (now - game.raceStart > RACE_TIMEOUT_MS) endRace(now);
 }
@@ -729,7 +758,7 @@ function tick() {
   lastTick = now;
   if (game.phase === 'countdown' && now >= game.goAt) {
     game.phase = 'race'; game.raceStart = now;
-    for (const p of game.players.values()) p.lapStart = now;
+    for (const p of entrants()) p.lapStart = now;
     game.nextEventAt = now + rnd(7000, 10000);
     io.emit('race_go');
   }
@@ -755,15 +784,15 @@ function snapshot(now) {
     ph: game.phase,
     t: game.phase === 'race' ? now - game.raceStart : -(game.goAt - now),
     o: game.order,
-    p: [...game.players.values()].map(p => ({
-      i: p.id, x: r1(p.x), y: r1(p.y), h: r2(p.h), l: p.lap, it: p.item, f: flags(p, now),
+    p: entrants().map(p => ({
+      i: p.id, x: r1(p.x), y: r1(p.y), h: r2(p.h), z: r2(p.lvl || 0), l: p.lap, it: p.item, f: flags(p, now),
       fin: p.finished ? 1 : 0, rk: p.rank, j: now < p.jumpUntil ? [now - p.jumpStart, p.jumpDur] : 0, ft: p.finishTime, sp: Math.round(Math.hypot(p.vx, p.vy)), th: p.throwsLeft
     })),
     b: game.boxes.filter(b => b.active).map(b => [Math.round(b.x), Math.round(b.y)]),
-    q: game.projectiles.map(q => [Math.round(q.x), Math.round(q.y), q.type, r2(q.h || 0)]),
-    tr: game.traps.map(t => [Math.round(t.x), Math.round(t.y), t.type]),
-    d: game.drops.map(d => [Math.round(d.x), Math.round(d.y), d.type, d.at - now]),
-    e: game.events.map(e => ({ k: e.type, x: r1(e.x), y: r1(e.y), a: r2(e.a || 0), w: e.warnUntil > now ? 1 : 0, len: e.len, tg: e.target }))
+    q: game.projectiles.map(q => [Math.round(q.x), Math.round(q.y), q.type, r2(q.h || 0), r2(q.lvl || 0)]),
+    tr: game.traps.map(t => [Math.round(t.x), Math.round(t.y), t.type, r2(t.lvl || 0)]),
+    d: game.drops.map(d => [Math.round(d.x), Math.round(d.y), d.type, d.at - now, r2(d.lvl || 0)]),
+    e: game.events.map(e => ({ k: e.type, x: r1(e.x), y: r1(e.y), a: r2(e.a || 0), z: r2(e.lvl || 0), w: e.warnUntil > now ? 1 : 0, len: e.len, tg: e.target }))
   };
 }
 function broadcast() {
@@ -841,6 +870,7 @@ io.on('connection', (s) => {
   s.on('abort_race', () => {
     if (!isHost() || game.phase === 'lobby') return;
     backToLobby();
+    if (quiz.flow.started && quiz.flow.tiebreak) return quiz.endTiebreak();                                    // tie-break cancelled: back to the ranking
     if (quiz.flow.started && quiz.flow.stage === 'race') { quiz.flow.stage = 'raceWait'; quiz.broadcast(); }     // RIAVVIA or SALTA from the host
   });
   s.on('quiz_skip_race', () => {

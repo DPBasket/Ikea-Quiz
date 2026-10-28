@@ -482,7 +482,7 @@ socket.on('quiz', v => {
   me.score = v.me.score;
   if (!v.started) { if (scr === 'quiz' || scr === 'done') showWait(); return; }
   if (v.stage === 'raceResults' && v.me.racePts != null) $('dpts').textContent = `+${v.me.racePts} punti (li vedi solo tu)`;
-  if (window.IKEA_QUIZ_PLAYER.handlesStage(v.stage)) {
+  if (window.IKEA_QUIZ_PLAYER.handlesStage(v.stage, v)) {
     if (scr !== 'quiz') show('quiz');
     window.IKEA_QUIZ_PLAYER.onQuiz(v);
   }
@@ -575,7 +575,7 @@ function drawHud(now, cw, ch, mine) {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,.9)'; R.rr(ctx, 14, 12, 190, 40, 8); ctx.fill();
     ctx.fillStyle = C.ink; ctx.font = '900 18px Verdana, sans-serif';
-    ctx.fillText(`GIRO ${Math.min(race.laps, mine.l + 1)}/${race.laps}  ${R.fmtTime(Math.max(0, state.t))}`, 26, 33);
+    ctx.fillText(`${race.track.open ? 'A → B' : `GIRO ${Math.min(race.laps, mine.l + 1)}/${race.laps}`}  ${R.fmtTime(Math.max(0, state.t))}`, 26, 33);
     // minimap
     drawMinimap(cw - 132, 120, 120, now);
     if (mine.j && !(mine.f & 1024)) { ctx.textAlign = 'center'; ctx.font = '900 26px Verdana, sans-serif'; ctx.lineWidth = 6; ctx.strokeStyle = '#fff';

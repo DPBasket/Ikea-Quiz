@@ -19,12 +19,13 @@
   }
 
   /* ---------- track ---------- */
-  function strokeSegs(ctx, path, extra, color, dash, colorFn) {
+  function strokeSegs(ctx, path, extra, color, dash, colorFn, only) {
     const { pts, n, closed, cum } = path, m = closed ? n : n - 1;
     ctx.lineJoin = 'round';
     if (dash) { ctx.setLineDash(dash); ctx.lineCap = 'butt'; } else { ctx.setLineDash([]); ctx.lineCap = 'round'; }
     for (let i = 0; i < m; i++) {
       const a = pts[i], b = pts[(i + 1) % n];
+      if (only && !only(a, b)) continue;
       ctx.strokeStyle = colorFn ? colorFn(cum[i]) : color;
       ctx.lineWidth = (a.w + b.w) / 2 + extra;
       if (dash) ctx.lineDashOffset = cum[i];
@@ -94,18 +95,34 @@
     paths.forEach(p => strokeSegs(ctx, p, 7, C.yellow));
     paths.forEach(p => strokeSegs(ctx, p, 8, C.track, [14, 12]));
     paths.forEach(p => strokeSegs(ctx, p, -1, C.track));
-    // start / finish line
-    const a = t.main.pts[0], b = t.main.pts[1], ang = Math.atan2(b.y - a.y, b.x - a.x);
-    ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(ang);
-    const hw = a.w / 2, sq = 6;
-    for (let i = 0; i * sq < a.w; i++) for (let j = 0; j < 2; j++) {
-      ctx.fillStyle = (i + j) % 2 ? C.blue : C.yellow;
-      ctx.fillRect(-sq + j * sq, -hw + i * sq, sq, Math.min(sq, a.w - i * sq));
+    // bridges: the upper level drawn again on top, with a dark edge (= it passes over)
+    if (t.layered) {
+      const up = (a, b) => (a.z + b.z) / 2 > 0.3;
+      strokeSegs(ctx, t.main, 22, 'rgba(17,17,17,.55)', null, null, up);
+      strokeSegs(ctx, t.main, 7, C.yellow, null, null, up);
+      strokeSegs(ctx, t.main, -1, '#D2D2D2', null, null, up);
     }
-    ctx.restore();
+    // start / finish line(s)
+    const checker = (s0) => {
+      const a = TR.pointAt(t.main, s0), ang = a.ang;
+      ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(ang);
+      const hw = a.w / 2, sq = 6;
+      for (let i = 0; i * sq < a.w; i++) for (let j = 0; j < 2; j++) {
+        ctx.fillStyle = (i + j) % 2 ? C.blue : C.yellow;
+        ctx.fillRect(-sq + j * sq, -hw + i * sq, sq, Math.min(sq, a.w - i * sq));
+      }
+      ctx.restore();
+    };
     const taken = [];
-    const fl = labelSpot(t, 0.0, 70, taken);
-    drawLabel(ctx, fl.x, fl.y, t.finish, t.finish === 'TACK!' ? 20 : 13);
+    checker(t.startS);
+    if (t.closed) {
+      const fl = labelSpot(t, 0.0, 70, taken);
+      drawLabel(ctx, fl.x, fl.y, t.finish, t.finish === 'TACK!' ? 20 : 13);
+    } else {
+      checker(t.finishS);
+      const sl = labelSpot(t, t.startS / t.L, 90, taken); drawLabel(ctx, sl.x, sl.y, 'A · ' + (t.start || 'START'), 13);
+      const fl = labelSpot(t, t.finishS / t.L, 80, taken); drawLabel(ctx, fl.x, fl.y, 'B · ' + t.finish, 13);
+    }
     // pads
     t.pads.forEach(p => {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
@@ -414,9 +431,9 @@
     const k = 1 - Math.exp(-dt * 18);
     for (const p of snapPlayers) {
       let d = disp[p.i];
-      if (!d) { d = disp[p.i] = { x: p.x, y: p.y, h: p.h }; continue; }
-      if (Math.hypot(p.x - d.x, p.y - d.y) > 80) { d.x = p.x; d.y = p.y; d.h = p.h; continue; }   // teleport (cart rocket)
-      d.x += (p.x - d.x) * k; d.y += (p.y - d.y) * k;
+      if (!d) { d = disp[p.i] = { x: p.x, y: p.y, h: p.h, z: p.z || 0 }; continue; }
+      if (Math.hypot(p.x - d.x, p.y - d.y) > 80) { d.x = p.x; d.y = p.y; d.h = p.h; d.z = p.z || 0; continue; }   // teleport (cart rocket)
+      d.x += (p.x - d.x) * k; d.y += (p.y - d.y) * k; d.z = (d.z || 0) + ((p.z || 0) - (d.z || 0)) * k;
       d.h += Math.atan2(Math.sin(p.h - d.h), Math.cos(p.h - d.h)) * k;
     }
   }
@@ -506,8 +523,11 @@
     // head
     ctx.fillStyle = '#F6D2B0'; ctx.beginPath(); ctx.arc(50, 28, 17, 0, TAU); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 1.5; ctx.stroke();
-    // hair tuft in player colour (bizarre touch)
-    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(38, 16); ctx.quadraticCurveTo(50, -2, 62, 16); ctx.quadraticCurveTo(50, 9, 38, 16); ctx.fill();
+    // IKEA bucket hat (the blue-and-yellow fisherman hat)
+    ctx.fillStyle = '#004F93'; ctx.beginPath(); ctx.moveTo(34, 14.5); ctx.lineTo(66, 14.5); ctx.quadraticCurveTo(74, 18, 77, 23); ctx.quadraticCurveTo(50, 26, 23, 23); ctx.quadraticCurveTo(26, 18, 34, 14.5); ctx.fill();   // drooping bucket-hat brim
+    ctx.fillStyle = '#0058A3'; ctx.beginPath(); ctx.moveTo(35, 18); ctx.lineTo(38, 4); ctx.quadraticCurveTo(50, -1, 62, 4); ctx.lineTo(65, 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFDB00'; ctx.beginPath(); ctx.moveTo(36.2, 13); ctx.lineTo(63.8, 13); ctx.lineTo(64.6, 16.6); ctx.lineTo(35.4, 16.6); ctx.closePath(); ctx.fill();   // band
+    ctx.fillStyle = '#0058A3'; ctx.font = '800 3.4px "Noto Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('IKEA', 50, 14.9);
     // face
     ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(44, 27, 5, 0, TAU); ctx.arc(57, 27, 5, 0, TAU); ctx.fill();
     ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(45, 28, 2.4, 0, TAU); ctx.arc(58, 28, 2.4, 0, TAU); ctx.fill();
@@ -703,13 +723,21 @@
         if (len < 1) continue;
         const ux = dx / len, uz = dz / len, nx = -uz, nz = ux, rot = -Math.atan2(dz, dx);
         const zone = TR.zoneAt(t, path === t.main ? cum[i] : t.fork.sF);
+        const lv = ((a.z || 0) + (bb.z || 0)) / 2, up = lv * TR.BRIDGE_H;
         for (const side of [1, -1]) {
           const sh = (a.sh[side] + bb.sh[side]) / 2;
           if (sh < 8) continue;                                                     // opening (fork junction)
-          const hw = (a.w + bb.w) / 4 + sh + 5;
+          const hw = (a.w + bb.w) / 4 + (lv > 0.1 ? 4 : sh + 5);                    // a bridge: railing right at the edge
           const mx = (a.x + bb.x) / 2 + nx * hw * side, mz = (a.y + bb.y) / 2 + nz * hw * side;
-          if (TR.clearance(t, mx + nx * side * 4, mz + nz * side * 4) < 2) continue;   // inside another road
-          const L2 = len + 3, st = zone.wall;
+          if (TR.clearance(t, mx + nx * side * 4, mz + nz * side * 4, { z: lv }) < 2) continue;   // inside another road (same level)
+          const L2 = len + 3, st = lv > 0.1 ? 'bridge' : zone.wall;
+          if (st === 'bridge') {
+            B.b(mx, mz, up, L2, 14, 3, rot, '#E8F0F4');                             // glass panel
+            B.b(mx, mz, up + 14, L2, 3, 5, rot, '#0058A3');                         // handrail
+            B.b(mx, mz, up - 7, L2, 7, 6, rot, '#0058A3');                          // blue edge of the deck
+            if (i % 2 === 0) B.c(mx, mz, up, 1.5, 17, '#0058A3');
+            continue;
+          }
           if (st === 'room') {
             B.b(mx, mz, 0, L2, 26, 8, rot, zone.color);
             B.b(mx, mz, 26, L2, 4, 10, rot, i % 6 < 3 ? '#0058A3' : '#FFDB00');
@@ -762,9 +790,16 @@
         const m = p.closed ? p.n : p.n - 1;
         for (let i = 0; i < m; i++) {
           const a = p.pts[i], b = p.pts[(i + 1) % p.n];
+          if ((a.z || 0) + (b.z || 0) > 0.6) continue;                               // up on a bridge
           x.strokeStyle = col2; x.lineWidth = a.w + extra;
           x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke();
         }
+      }
+      // the shadow of the bridges on the floor, then the roads below again on top of it
+      if (t.layered) {
+        const m = t.main.n - 1, P = t.main.pts;
+        x.strokeStyle = 'rgba(60,50,40,.22)';
+        for (let i = 0; i < m; i++) { const a = P[i], b = P[i + 1]; if (a.z + b.z <= 0.6) continue; x.lineWidth = a.w * 0.9; x.beginPath(); x.moveTo(a.x + 14, a.y + 14); x.lineTo(b.x + 14, b.y + 14); x.stroke(); }
       }
     });
   }
@@ -791,7 +826,8 @@
       const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)], b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)];
       let dx = b.x - a.x, dz = b.y - a.y; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
       const nx = -dz, nz = dx, hw = p.w / 2, v = (k === n ? path.L : cum[i]) / 160;
-      pos.set([p.x + nx * hw, y, p.y + nz * hw, p.x - nx * hw, y, p.y - nz * hw], k * 6);
+      const py = y + (p.z || 0) * TR.BRIDGE_H;
+      pos.set([p.x + nx * hw, py, p.y + nz * hw, p.x - nx * hw, py, p.y - nz * hw], k * 6);
       uv.set([0, v, 1, v], k * 4);
       if (k < cnt - 1) idx.push(k * 2, k * 2 + 1, k * 2 + 2, k * 2 + 1, k * 2 + 3, k * 2 + 2);
     }
@@ -842,6 +878,21 @@
     group.add(roadMesh(t.main, 0.6));
     if (t.branch) group.add(roadMesh(t.branch, 0.9));
     buildWalls(B, t);
+    if (t.layered) {
+      const P = t.main.pts;
+      for (let i = 0; i < t.main.n - 1; i++) {
+        const a = P[i], b = P[i + 1], lv = ((a.z || 0) + (b.z || 0)) / 2;
+        if (lv < 0.05) continue;
+        const dx = b.x - a.x, dz = b.y - a.y, len = Math.hypot(dx, dz), rot = -Math.atan2(dz, dx), up = lv * TR.BRIDGE_H;
+        const mx = (a.x + b.x) / 2, mz = (a.y + b.y) / 2, nx = -dz / len, nz = dx / len;
+        const drop = Math.abs((b.z || 0) - (a.z || 0)) * TR.BRIDGE_H / 2 + 1.5;           // on a ramp the slab stays under the slope
+        B.b(mx, mz, up - 5.5 - drop, len + 2, 5.5, a.w + 6, rot, '#C9C4BA');                // deck slab
+        if (lv > 0.35 && i % 5 === 0) for (const sd of [1, -1]) {                      // pillars, never standing on the road below
+          const px = mx + nx * sd * (a.w / 2 - 8), pz = mz + nz * sd * (a.w / 2 - 8);
+          if (TR.clearance(t, px, pz, { z: 0 }) > 6) B.c(px, pz, 0, 6, up - 6, '#0058A3');
+        }
+      }
+    }
     // columns + furniture fill the store floor
     for (let x = 200; x < W; x += 400) for (let z = 150; z < H; z += 400) if (TR.clearance(t, x, z) > 40) B.c(x, z, 0, 12, CEIL, '#BDBDBD');
     const used = [];
@@ -885,21 +936,25 @@
       for (const sd of [-1, 1]) o.b(-14, sd * (w / 2 + 4), 0, 44, 22, 4, '#E4002B');
     });
     B.build(group);
-    // start / finish line + arch
-    const a = t.main.pts[0], b = t.main.pts[1], ang = Math.atan2(b.y - a.y, b.x - a.x);
+    // start / finish line + arch (an A→B track has one at each end)
     const check = canvasTex(64, 256, (x, w, h) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 2; j++) { x.fillStyle = (i + j) % 2 ? '#0058A3' : '#FFDB00'; x.fillRect(j * 32, i * 32, 32, 32); } });
-    const line = new T3.Mesh(new T3.PlaneGeometry(24, a.w), new T3.MeshBasicMaterial({ map: check }));
-    line.rotation.set(-Math.PI / 2, 0, -ang); line.position.set(a.x, 1.2, a.y); group.add(line);
-    const arch = new T3.Group();
     const postM = new T3.MeshLambertMaterial({ color: '#0058A3' });
-    for (const sd of [-1, 1]) { const post = new T3.Mesh(new T3.BoxGeometry(8, 110, 8), postM); post.position.set(0, 55, sd * (a.w / 2 + 10)); arch.add(post); }
-    const banner = signMesh(t.finish, a.w + 28, 30); banner.position.set(0, 100, 0); banner.rotation.y = -Math.PI / 2; arch.add(banner);
-    arch.position.set(a.x, 0, a.y); arch.rotation.y = -ang; group.add(arch);
+    const gate = (s0, text) => {
+      const a = TR.pointAt(t.main, s0), ang = a.ang, y0 = (a.z || 0) * TR.BRIDGE_H;
+      const line = new T3.Mesh(new T3.PlaneGeometry(24, a.w), new T3.MeshBasicMaterial({ map: check }));
+      line.rotation.set(-Math.PI / 2, 0, -ang); line.position.set(a.x, y0 + 1.2, a.y); group.add(line);
+      const arch = new T3.Group();
+      for (const sd of [-1, 1]) { const post = new T3.Mesh(new T3.BoxGeometry(8, 110, 8), postM); post.position.set(0, 55, sd * (a.w / 2 + 10)); arch.add(post); }
+      const banner = signMesh(text, a.w + 28, 30); banner.position.set(0, 100, 0); banner.rotation.y = -Math.PI / 2; arch.add(banner);
+      arch.position.set(a.x, y0, a.y); arch.rotation.y = -ang; group.add(arch);
+    };
+    if (t.closed) gate(0, t.finish);
+    else { gate(t.startS, t.start || 'START'); gate(t.finishS, t.finish); }
     // hanging zone signs over the road
     t.zones.forEach(z => {
       const pt = TR.pointAt(t.main, (z.a + 0.03) * t.L);
       const sg = signMesh(z.name, Math.min(pt.w, 40 + z.name.length * 11), 26);
-      sg.position.set(pt.x, 112, pt.y); sg.rotation.y = -pt.ang - Math.PI / 2;
+      sg.position.set(pt.x, 112 + (pt.z || 0) * TR.BRIDGE_H, pt.y); sg.rotation.y = -pt.ang - Math.PI / 2;
       const wire = new T3.Mesh(new T3.BoxGeometry(1, CEIL - 125, 1), new T3.MeshBasicMaterial({ color: '#333' }));
       wire.position.set(pt.x, 125 + (CEIL - 125) / 2, pt.y);
       wire.userData.ceiling = true;
@@ -1120,14 +1175,15 @@
           jump = 4 * (30 + 0.035 * d.jD) * jf * (1 - jf);
         } else d.jS = null;
         d.jy = jump;
-        k.root.position.set(d.x, jump, d.y); k.root.rotation.y = -d.h;
+        const lift = (d.z || 0) * TR.BRIDGE_H;
+        k.root.position.set(d.x, jump + lift, d.y); k.root.rotation.y = -d.h;
         const big = v.mode === 'overview' ? 2.4 : 1;                    // easier to see on the projector
         k.kart.scale.setScalar(big); k.label.scale.set(64 * big * 1.3, 16 * big * 1.3, 1); k.label.position.y = 46 * big;
         k.kart.rotation.z = jump ? (0.5 - jf) * 0.45 : 0;                               // nose up, then down
         k.kart.rotation.x = (p.f & 8) ? Math.sin(now / 60) * 0.25 : 0;
         if ((p.f & 1024) && jump) k.kart.rotation.y = jf * Math.PI * 2;                   // trick: 360° spin
         else if (p.f & 8) k.kart.rotation.y += dt * 12; else k.kart.rotation.y *= 0.8;     // spin-out
-        k.shadow.position.set(d.x, 0.9, d.y); k.shadow.scale.setScalar(Math.max(0.4, 1 - jump / 140) * (v.mode === 'overview' ? 2.4 : 1));
+        k.shadow.position.set(d.x, 0.9 + lift, d.y); k.shadow.scale.setScalar(Math.max(0.4, 1 - jump / 140) * (v.mode === 'overview' ? 2.4 : 1));
         k.label.visible = !!o.names && !isMe;
         const alpha = ghost ? (isMe ? 0.45 : 0.25) : 1;
         const invi = p.f & 16, flash = invi && Math.floor(now / 90) % 2;
@@ -1166,12 +1222,12 @@
           s.emit(q[0], 66, q[1], { n: 1, colors: ['#4FC3F7', '#FFFFFF'], speed: 30, up: 0, life: 0.6, gravity: 0 });
           return;
         }
-        const m = v.pools[q[2] === 'red' ? 'red' : 'green'].get(); m.position.set(q[0], 0, q[1]); m.rotation.y = now / 80;
+        const m = v.pools[q[2] === 'red' ? 'red' : 'green'].get(); m.position.set(q[0], (q[4] || 0) * TR.BRIDGE_H, q[1]); m.rotation.y = now / 80;
       });
-      st.tr.forEach(t => { const m = v.pools[t[2] === 'mash' ? 'mash' : 'box'].get(); m.position.set(t[0], 0, t[1]); });
+      st.tr.forEach(t => { const m = v.pools[t[2] === 'mash' ? 'mash' : 'box'].get(); m.position.set(t[0], (t[3] || 0) * TR.BRIDGE_H, t[1]); });
       st.d.forEach(dr => {
         const g = v.pools.drop.get(), k = Math.max(0, Math.min(1, dr[3] / 700));
-        g.position.set(dr[0], 0, dr[1]);
+        g.position.set(dr[0], (dr[4] || 0) * TR.BRIDGE_H, dr[1]);
         const [mash, box, red, ring] = g.children;
         mash.visible = dr[2] === 'mash'; box.visible = dr[2] === 'box'; red.visible = dr[2] === 'pillow';
         for (const c of [mash, box, red]) c.position.y = 220 * k;
@@ -1191,7 +1247,7 @@
           return;
         }
         const pool = v.pools[e.k]; if (!pool) return;
-        const m = pool.get(); m.position.set(e.x, 0, e.y); m.rotation.y = -e.a;
+        const m = pool.get(); m.position.set(e.x, (e.z || 0) * TR.BRIDGE_H, e.y); m.rotation.y = -e.a;
       });
       for (const k in v.pools) v.pools[k].end();
       s.update(dt);
@@ -1216,8 +1272,12 @@
     let cx = d.x - Math.cos(v.camH) * dist, cz = d.y - Math.sin(v.camH) * dist;
     // keep the camera above the road so walls never block the view
     for (let i = 0; i < 6 && camOut(v.track, cx, cz); i++) { cx = (cx + d.x) / 2; cz = (cz + d.y) / 2; }
-    const jy = (d.jy || 0) * 0.7;
-    v.camPos.set(cx, hgt + jy, cz);
+    const jy = (d.jy || 0) * 0.7 + (d.z || 0) * TR.BRIDGE_H;
+    // driving under a bridge: keep the camera below the deck
+    let ch = hgt;
+    if (v.track.layered && (d.z || 0) < 0.5 && (TR.clearance(v.track, cx, cz, { z: 1 }) < 30 || TR.clearance(v.track, cam.position.x, cam.position.z, { z: 1 }) < 30)) ch = Math.min(hgt, TR.BRIDGE_H - 22);
+    v.camH2 = v.camH2 == null ? ch : v.camH2 + (ch - v.camH2) * Math.min(1, dt * 6);
+    v.camPos.set(cx, v.camH2 + jy, cz);
     cam.position.lerp(v.camPos, 1 - Math.exp(-dt * 10));
     // clamp the smoothed position too, so it never cuts a corner through the shelves
     for (let i = 0; i < 6 && camOut(v.track, cam.position.x, cam.position.z); i++) {

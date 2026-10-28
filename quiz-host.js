@@ -69,7 +69,7 @@
       return frame(`
         <div class="powers">
           <h1 class="mega">${only ? `Potere bonus per ${esc(only.join(', '))}` : 'Fase poteri'}</h1>
-          <p class="lede">${only ? 'Ha fatto il giro più veloce in gara: solo lui sceglie un potere per questa domanda.' : 'Sul telefono: scegli un potere o nessuno. Gli ostacoli si lanciano contro un avversario.'}</p>
+          <p class="lede">${only ? 'Ha fatto il giro più veloce in gara: solo lui sceglie un potere per questa domanda.' : 'Sul telefono ognuno ha tre poteri estratti a caso: ne sceglie uno o nessuno. Gli ostacoli si lanciano contro un avversario.'}</p>
           <dl class="plist">${Object.entries(v.powers).map(([k, d]) => `<div class="${d.kind}"><dt>${esc(d.label)}</dt><dd>${esc(d.desc)}</dd></div>`).join('')}</dl>
         </div>`,
         `${who('power')}${note(`${v.counts.powers} di ${v.counts.players} hanno scelto`)}${next('Salta', 'quiet')}`);
@@ -90,7 +90,7 @@
             ${answersHtml(true)}
           </div>
         </div>
-        <div class="gains">${gainsHtml()}</div>`,
+        <div class="gains">${gainsHtml()}</div>${twistsHtml()}`,
         `${note('I punti li vede ognuno sul proprio telefono. La classifica arriva a fine parte.')}${next('Avanti')}`, { cls: 'ask' });
     }
     if (s === 'standings' && !v.boardVisible) return frame(`
@@ -123,11 +123,11 @@
         `<button class="go quiet" id="qskip">Salta la gara</button>${next(s === 'raceWait' ? 'Riavvia la gara' : 'Riprova')}`);
     }
     if (s === 'final' && v.final && v.final.shown < v.final.total) {
-      const st = v.standings, n = st.length, latest = st.find(p => !p.hidden && p.rank === n - v.final.shown + 1);
+      const st = v.standings, n = st.length, latest = st.find(p => !p.hidden && (p.pos || p.rank) === n - v.final.shown + 1);
       return frame(`
         <div class="tally">
           <div class="leader spot">
-            ${latest ? `<p class="bigrank">${latest.rank}°</p><img class="rise" src="${av(latest, 360)}" alt=""><h1 class="mega">${esc(latest.name)}</h1><p class="lede">${pts(latest.score)} punti</p>`
+            ${latest ? `<p class="bigrank">${latest.rank}°</p><img class="rise" src="${av(latest, 360)}" alt=""><h1 class="mega">${esc(latest.name)}</h1><p class="lede">${pts(latest.score)} punti${latest.tie ? ', a pari merito' : ''}</p>`
               : `<p class="bigrank">?</p><h1 class="mega">Si parte dall'ultimo posto</h1>`}
           </div>
           ${receipt(st, 'Classifica finale')}
@@ -136,13 +136,18 @@
     }
     if (s === 'final') {
       const st = v.standings, p3 = [st[1], st[0], st[2]], h = { 1: 18, 2: 12, 3: 8 };
+      const tie = v.final.ties && v.final.ties[0], done = v.final.tbDone;
+      const top = st.filter(p => p.rank === 1);
+      const msg = tie
+        ? `Pari merito al ${tie.rank}° posto: ${esc(tie.names.join(' e '))}, ${pts(tie.score)} punti. Lo decide una gara di spareggio, da A a B.`
+        : top.length > 1 ? `Pari merito in testa: ${esc(top.map(p => p.name).join(' e '))}.` : `${done ? `Spareggio vinto da ${esc(done.winner)}. ` : ''}Vince ${esc(st[0] ? st[0].name : '')}. Tack för idag!`;
       return frame(`
         <div class="tally">
           <div class="podium">${p3.map(p => p ? `<div class="pl r${p.rank}"><img src="${av(p, 300)}" alt=""><b>${esc(p.name)}</b><span>${pts(p.score)}</span>
-            <div class="cube" style="height:calc(var(--u) * ${h[p.rank]})">${p.rank}</div></div>` : '').join('')}</div>
-          ${receipt(st, 'Classifica finale', true)}
+            <div class="cube" style="height:calc(var(--u) * ${h[p.rank] || 6})">${p.rank}</div></div>` : '').join('')}</div>
+          ${receipt(st, 'Classifica finale', !tie)}
         </div>`,
-        `${note(`Vince ${esc(st[0] ? st[0].name : '')}. Tack för idag!`)}<button class="go quiet" id="qreset">Nuova partita</button>`);
+        `${note(msg)}${tie ? `<button class="go" id="qtb">Gara di spareggio</button>` : ''}<button class="go quiet" id="qreset">Nuova partita</button>`);
     }
     return '';
   }
@@ -154,7 +159,7 @@
       <h2>IKEA Lugano · ${esc(title)}</h2>
       <ol>${list.map(p => p.hidden
         ? `<li class="hid"><span class="rk">${p.rank}</span><span class="nm">· · ·</span><span class="sc"></span></li>`
-        : `<li class="${p.rank === 1 ? 'top' : ''}"><span class="rk">${p.rank}</span><img src="${av(p, 72)}" alt=""><span class="nm">${esc(p.name)}</span><span class="sc">${pts(p.score)}</span></li>`).join('')}</ol>
+        : `<li class="${p.rank === 1 ? 'top' : ''} ${p.tie ? 'tie' : ''}"><span class="rk">${p.rank}</span><img src="${av(p, 72)}" alt=""><span class="nm">${esc(p.name)}${p.tie ? ' <em>pari</em>' : ''}</span><span class="sc">${pts(p.score)}</span></li>`).join('')}</ol>
       <p class="sum"><span>Punti in gioco</span><span>${pts(total)}</span></p>
       <p class="tack">${done ? 'Tack! Arrivederci' : 'Tack!'}</p>
     </section>`;
@@ -193,6 +198,16 @@
         : `<li class="${a.blocked ? 'blocked' : ''}" style="--i:${i}"><img src="${av(from, 80)}" alt="">${esc(from.name)} lancia <b>${esc(d.label)}</b> a <img src="${av(to, 80)}" alt="">${esc(to.name)}${a.blocked ? ', ma lo scudo lo ferma' : ''}</li>`;
     }).join('')}</ul>`;
   }
+  // steals and swaps are public moments (without the numbers)
+  function twistsHtml() {
+    if (!v.results) return '';
+    const t = [];
+    for (const r of v.results) {
+      if (r.robbedBy) t.push(`${r.robbedBy.map(id => esc(byId(id).name)).join(' e ')} ruba i punti di ${esc(byId(r.id).name)}`);
+      if (r.swapped) t.push(`${esc(byId(r.id).name)} scambia il suo totale con ${esc(byId(r.swapped).name)}`);
+    }
+    return t.length ? `<ul class="attacks">${t.map((x, i) => `<li style="--i:${i}">${x}</li>`).join('')}</ul>` : '';
+  }
   // who got it right (never the points: those stay private on each phone)
   function gainsHtml() {
     if (!v.results) return '';
@@ -211,6 +226,7 @@
     el.innerHTML = render();
     const nb = $('qnext'); if (nb) nb.onclick = () => socket.emit('quiz_next');
     const sk = $('qskip'); if (sk) sk.onclick = () => socket.emit('quiz_skip_race');
+    const tb = $('qtb'); if (tb) tb.onclick = () => socket.emit('quiz_tiebreak');
     const rs = $('qreset'); if (rs) rs.onclick = () => { if (confirm('Ricominciare da zero? I punti verranno azzerati.')) socket.emit('quiz_reset'); };
   }
   setInterval(() => {                         // timer: a thick yellow bar that empties, plus the seconds
@@ -224,7 +240,7 @@
   window.IKEA_QUIZ_HOST = {
     onQuiz(view) {
       v = view; endAt = performance.now() + (v.deadline || 0);
-      const key = JSON.stringify([v.stage, v.stepIndex, v.counts, v.who, v.final, v.powerOnly, v.standings.map(s => [s.id, s.score, s.connected, s.avatar]), v.attacks && v.attacks.length]);
+      const key = JSON.stringify([v.stage, v.stepIndex, v.counts, v.who, v.final, v.powerOnly, v.tiebreak, v.standings.map(s => [s.id, s.score, s.connected, s.avatar]), v.attacks && v.attacks.length]);
       if (key !== lastKey) { lastKey = key; paint(); }
     },
     handlesStage(stage) { return !['race', 'raceResults', 'lobby'].includes(stage); }

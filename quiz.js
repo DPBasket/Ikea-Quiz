@@ -59,6 +59,7 @@ function createQuiz(ctx) {
     if (p.score == null) p.score = 0;
     if (!p.avatar) p.avatar = AVATAR_ITEMS[Math.floor(Math.random() * AVATAR_ITEMS.length)];
     if (!p.history) p.history = [];
+    if (!p.powerUses) p.powerUses = {};
   }
 
   const stepObj = () => steps[flow.step] || null;
@@ -73,7 +74,8 @@ function createQuiz(ctx) {
         at: now(), code: game.code,
         flow: { started: flow.started, step: flow.step, stage: flow.stage, lastRace: flow.lastRace, log: flow.log, finalShown: flow.finalShown, bonus: flow.bonus,
           cur: flow.cur && { ...flow.cur, ready: [...flow.cur.ready] } },
-        players: players().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, avatar: p.avatar, score: p.score, history: p.history }))
+        players: players().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, avatar: p.avatar, score: p.score, history: p.history, powerUses: p.powerUses })),
+        raceMods: flow.raceMods, tb: flow.tb || {}
       };
       try { fs.writeFileSync(SAVE_FILE, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, 200);
@@ -85,9 +87,11 @@ function createQuiz(ctx) {
       game.code = d.code;
       for (const s of d.players) {
         const p = newPlayerFn({ id: s.id, name: s.name, color: s.color, bot: s.bot });
-        Object.assign(p, { avatar: s.avatar, score: s.score, history: s.history || [], connected: !!s.bot });
+        Object.assign(p, { avatar: s.avatar, score: s.score, history: s.history || [], powerUses: s.powerUses || {}, connected: !!s.bot });
         game.players.set(p.id, p);
       }
+      flow.raceMods = d.raceMods || null;
+      flow.tb = d.tb || {};
       Object.assign(flow, { started: true, step: d.flow.step, lastRace: d.flow.lastRace, log: d.flow.log || [], bonus: d.flow.bonus || null });
       const st = stepObj();
       if (st && st.t === 'q') {
@@ -97,7 +101,7 @@ function createQuiz(ctx) {
         else if (flow.cur) setStage('reading', DATA.TIMES.reading);
         else enterStep();
       } else if (st && st.t === 'race') { flow.stage = 'raceWait'; }       // host presses AVANTI to restart that race
-      else if (st && st.t === 'final') { flow.stage = 'final'; flow.finalShown = players().length; }
+      else if (st && st.t === 'final') { flow.stage = 'final'; flow.finalShown = players().length; flow.tiebreak = null; }
       else enterStep();
       console.log(`  Partita ripristinata: passo ${flow.step + 1}/${steps.length}`);
       return true;
@@ -133,7 +137,7 @@ function createQuiz(ctx) {
       // powers from the 2nd question of each part; at the 1st only for whoever made the fastest lap
       const bonus = s.q === 0 && flow.bonus && flow.bonus.p === s.p && game.players.has(flow.bonus.id);
       flow.cur.powerOnly = bonus ? [flow.bonus.id] : null;
-      if (s.q > 0 || bonus) return setStage('powers', DATA.TIMES.powers);
+      if (s.q > 0 || bonus) { makeOffers(q); return setStage('powers', DATA.TIMES.powers); }
       return setStage('reading', DATA.TIMES.reading);
     }
   }
@@ -185,8 +189,9 @@ function createQuiz(ctx) {
   }
   function reset() {
     clearTimeout(timer);
-    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [], bonus: null, racePts: null });
-    for (const p of players()) { p.score = 0; p.history = []; }
+    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [], bonus: null, racePts: null, tb: {}, tiebreak: null, tbDone: null });
+    for (const p of players()) { p.score = 0; p.history = []; p.powerUses = {}; }
+    flow.raceMods = null;
     try { fs.unlinkSync(SAVE_FILE); } catch (e) { /* ignore */ }
     broadcast();
   }
@@ -204,8 +209,16 @@ function createQuiz(ctx) {
     flow.stage = 'race'; flow.deadline = 0; broadcast(); save();
   }
   // grid for every race: best quiz score starts in pole position
-  hooks.getStartingGrid = (list) => list.slice().sort((a, b) => (b.score || 0) - (a.score || 0) || Math.random() - 0.5);
+  hooks.getStartingGrid = (list) => {
+    const grid = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0) || Math.random() - 0.5);
+    const mods = flow.raceMods || { first: [], last: [] };
+    const take = id => { const i = grid.findIndex(p => p.id === id); return i >= 0 ? grid.splice(i, 1)[0] : null; };
+    const first = mods.first.map(take).filter(Boolean), last = mods.last.filter(id => !mods.first.includes(id)).map(take).filter(Boolean);
+    flow.raceMods = { first: [], last: [] };                 // bought for one race only
+    return [...first, ...grid, ...last];
+  };
   hooks.decorateResults = (results) => {
+    if (flow.tiebreak) return tiebreakResults(results);
     const r = DATA.RACES[flow.raceIndex] || {}, n = results.length, mul = r.final ? 2 : 1;
     flow.racePts = {};
     // fastest single lap of the race
@@ -222,21 +235,101 @@ function createQuiz(ctx) {
     flow.bonus = fast && r.before ? { id: fast.id, name: fast.name, p: r.before - 1 } : null;
     flow.stage = 'raceResults'; save();
   };
-  hooks.onContinue = () => { if (flow.started && (flow.stage === 'raceResults' || flow.stage === 'race')) next(); };
+  hooks.onContinue = () => {
+    if (!flow.started || (flow.stage !== 'raceResults' && flow.stage !== 'race')) return;
+    if (flow.tiebreak) return endTiebreak();
+    next();
+  };
   hooks.applyWinnerBonus = () => {};                // race points already given by decorateResults
 
+  /* ---------- tie-break ----------
+   * Same points at the end → the host can start an extra race (the A→B track) between the tied players only.
+   * Nobody gains points: the order of arrival decides who goes ahead in the final ranking. */
+  const TIEBREAK_TRACK = 'spareggio';
+  function finalOrder() {
+    const tb = flow.tb || {};
+    return players().slice().sort((a, b) => ((b.score || 0) - (a.score || 0)) || ((tb[b.id] || 0) - (tb[a.id] || 0)));
+  }
+  const sameSpot = (a, b) => (a.score || 0) === (b.score || 0) && ((flow.tb || {})[a.id] || 0) === ((flow.tb || {})[b.id] || 0);
+  // groups of players still tied, best position first
+  function ties() {
+    const list = finalOrder(), out = [];
+    for (let i = 0; i < list.length; i++) {
+      let j = i;
+      while (j + 1 < list.length && sameSpot(list[i], list[j + 1])) j++;
+      if (j > i) out.push({ rank: i + 1, ids: list.slice(i, j + 1).map(p => p.id), names: list.slice(i, j + 1).map(p => p.name), score: list[i].score || 0 });
+      i = j;
+    }
+    return out;
+  }
+  function startTiebreak() {
+    if (flow.stage !== 'final' || (flow.finalShown || 0) < players().length) return;
+    const t = ties()[0];
+    if (!t) return;
+    clearTimeout(timer);
+    if (game.phase !== 'lobby') ctx.backToLobby();
+    flow.tiebreak = { ids: t.ids, names: t.names, rank: t.rank };
+    const err = ctx.startRace(TIEBREAK_TRACK, t.ids);
+    if (err) { flow.tiebreak = null; broadcast(); return; }
+    flow.stage = 'race'; flow.deadline = 0; broadcast(); save();
+  }
+  function tiebreakResults(results) {
+    const tb = flow.tb = flow.tb || {}, n = results.length;
+    const base = Math.max(0, ...results.map(x => tb[x.playerId] || 0)) * 100;   // they were tied, so they all had the same value
+    for (const x of results) tb[x.playerId] = base + (n - x.rank + 1);
+    flow.racePts = null;
+    flow.lastRace = { tiebreak: true, results: results.map(x => ({ playerId: x.playerId, rank: x.rank, name: x.name })) };
+    flow.tiebreak.winner = results[0] && results[0].name;
+    flow.stage = 'raceResults'; save();
+  }
+  function endTiebreak() {
+    const last = flow.tiebreak;
+    if (game.phase !== 'lobby') ctx.backToLobby();
+    flow.tiebreak = null;
+    flow.tbDone = last && last.winner ? { winner: last.winner, names: last.names, rank: last.rank } : null;
+    flow.stage = 'final'; flow.finalShown = players().length;
+    broadcast(); save();
+  }
+
   /* ---------- powers ---------- */
+  // every player gets POWER_OFFER random powers to choose from (not always the same list)
+  function makeOffers(q) {
+    const ranked = players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)), n = Math.max(1, ranked.length - 1);
+    flow.cur.offers = {};
+    for (const p of players()) {
+      ensure(p);
+      const f = ranked.indexOf(p) / n;                    // 0 = leader … 1 = last
+      const pool = Object.entries(DATA.POWERS).filter(([k, d]) =>
+        !(d.maxUses && (p.powerUses[k] || 0) >= d.maxUses) &&
+        !(d.cost && (p.score || 0) < d.cost) &&
+        !(d.needsChoices && !(q.type === 'choice' && q.answers.length >= d.needsChoices)) &&
+        !(d.weightLow && f === 0)
+      ).map(([k, d]) => [k, d.weightLow ? 0.3 + 2 * f : 1]);
+      const pick = [];
+      while (pick.length < DATA.POWER_OFFER && pool.length) {
+        let r = Math.random() * pool.reduce((a, x) => a + x[1], 0), i = 0;
+        for (; i < pool.length - 1; i++) { r -= pool[i][1]; if (r < 0) break; }
+        pick.push(pool.splice(i, 1)[0][0]);
+      }
+      flow.cur.offers[p.id] = pick;
+    }
+  }
   const canPower = p => !flow.cur || !flow.cur.powerOnly || flow.cur.powerOnly.includes(p.id);
   const powerers = () => active().filter(canPower);
   function choosePower(p, power, target) {
     if (flow.stage !== 'powers' || !flow.cur || flow.cur.powers[p.id] || !canPower(p)) return;
     const def = DATA.POWERS[power];
-    if (power !== 'SKIP' && !def) return;
+    if (power !== 'SKIP' && (!def || !(flow.cur.offers && (flow.cur.offers[p.id] || []).includes(power)))) return;
+    if (def && def.cost && (p.score || 0) < def.cost) return;
     if (def && def.kind === 'obstacle') {
       const t = game.players.get(target);
       if (!t || t === p) return;
       flow.cur.powers[p.id] = { power, target };
     } else flow.cur.powers[p.id] = { power };
+    if (def) {
+      if (def.cost) p.score -= def.cost;                       // paid right away
+      p.powerUses[power] = (p.powerUses[power] || 0) + 1;
+    }
     broadcast(); save();
     if (powerers().every(x => flow.cur.powers[x.id])) endPowers();
   }
@@ -254,6 +347,19 @@ function createQuiz(ctx) {
       (eff[c.target] = eff[c.target] || []).push({ power: c.power, from, blocked: shield });
     }
     flow.cur.effects = eff;
+    // effects that need a decision now
+    const q = qData();
+    flow.cur.removed = {};
+    flow.raceMods = flow.raceMods || { first: [], last: [] };
+    for (const [pid, list] of Object.entries(eff)) for (const e of list) {
+      if (e.blocked) continue;
+      if (e.power === 'TOGLI' && q.type === 'choice') {
+        const wrong = flow.cur.perm.map((orig, i) => (orig === q.correct ? -1 : i)).filter(i => i >= 0);
+        flow.cur.removed[pid] = wrong[Math.floor(Math.random() * wrong.length)];
+      }
+      if (e.power === 'POLE' && !flow.raceMods.first.includes(pid)) flow.raceMods.first.push(pid);
+      if (e.power === 'ULTIMO' && !flow.raceMods.last.includes(pid)) flow.raceMods.last.push(pid);
+    }
     setStage('reading', DATA.TIMES.reading);
   }
 
@@ -295,13 +401,30 @@ function createQuiz(ctx) {
     scorers.forEach((p, k) => {
       const r = res[p.id], share = q.type === 'order' ? r.right / q.items.length : 1;
       const dbl = (flow.cur.effects[p.id] || []).some(e => e.power === 'DOPPIO') ? 2 : 1;
-      r.pts = Math.round((N - k) * STEP * share) * dbl; r.order = k + 1;
+      const half = q.type === 'choice' && q.answers.length === 2 ? 0.5 : 1;     // persona/mobile: half points (N/2)
+      r.pts = Math.round((N - k) * STEP * share * half) * dbl; r.order = k + 1;
     });
+    for (const p of players()) res[p.id].pts = res[p.id].pts || 0;
+    const live = (pid, power) => (flow.cur.effects[pid] || []).filter(e => e.power === power && !e.blocked);
+    // RUBA: the target's points of this question go to whoever stole them (split if several)
+    for (const p of players()) {
+      const thieves = live(p.id, 'RUBA').map(e => e.from).filter(id => res[id]);
+      if (!thieves.length || !res[p.id].pts) { if (thieves.length) res[p.id].robbedBy = thieves; continue; }
+      const loot = res[p.id].pts, share = Math.floor(loot / thieves.length);
+      res[p.id].pts = 0; res[p.id].robbedBy = thieves; res[p.id].lost = loot;
+      for (const t of thieves) { res[t].pts += share; res[t].stolen = (res[t].stolen || 0) + share; }
+    }
     for (const p of players()) {
       ensure(p);
-      const r = res[p.id]; r.pts = r.pts || 0;
+      const r = res[p.id];
       p.score += r.pts;
       p.history.push({ part: s.p, q: s.q, pts: r.pts, correct: r.correct });
+    }
+    // SCAMBIO: after the question, the two totals are swapped
+    for (const p of players()) for (const e of live(p.id, 'SCAMBIO')) {
+      const a = game.players.get(e.from); if (!a) continue;
+      [a.score, p.score] = [p.score, a.score];
+      res[a.id].swapped = p.id; res[p.id].swappedBy = a.id;
     }
     flow.cur.results = res;
     flow.log.push({ p: s.p, q: s.q, correct: Object.values(res).filter(r => r.correct).length });
@@ -316,7 +439,7 @@ function createQuiz(ctx) {
     const later = (ms, fn) => setTimeout(() => { if (flow.stageAt === stamp && flow.stage === stage) fn(); }, ms);
     for (const b of bots) {
       if (stage === 'powers' && canPower(b)) later(rnd(1500, 7000), () => {
-        const keys = Object.keys(DATA.POWERS), k = Math.random() < 0.25 ? 'SKIP' : keys[Math.floor(Math.random() * keys.length)];
+        const keys = (flow.cur.offers && flow.cur.offers[b.id]) || [], k = Math.random() < 0.25 || !keys.length ? 'SKIP' : keys[Math.floor(Math.random() * keys.length)];
         const others = players().filter(p => p !== b);
         choosePower(b, k, others.length ? others[Math.floor(Math.random() * others.length)].id : null);
         if (!flow.cur.powers[b.id]) choosePower(b, 'SKIP');
@@ -344,10 +467,14 @@ function createQuiz(ctx) {
   }
   function standings() {
     const pub = p => ({ id: p.id, name: p.name, color: p.color, avatar: p.avatar, bot: p.bot, connected: p.connected });
-    if (flow.stage === 'final') {
-      const sorted = players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)), n = sorted.length;
-      return sorted.map((p, i) => (i + 1 > n - (flow.finalShown || 0)) ? { ...pub(p), score: p.score || 0, rank: i + 1 } : { ...pub(p), hidden: true, rank: i + 1 })
-        .map(x => x.hidden ? { ...x, id: 'h' + x.rank, name: '?', color: '#BDBDBD', avatar: null, rank: x.rank } : x);
+    if (flow.stage === 'final' || flow.tiebreak) {
+      const sorted = finalOrder(), n = sorted.length;
+      let rank = 0;
+      return sorted.map((p, i) => {
+        const tie = (i > 0 && sameSpot(p, sorted[i - 1])) || (i < n - 1 && sameSpot(p, sorted[i + 1]));
+        if (!(i > 0 && sameSpot(p, sorted[i - 1]))) rank = i + 1;          // tied players share the rank
+        return (i + 1 > n - (flow.finalShown || 0)) ? { ...pub(p), score: p.score || 0, rank, pos: i + 1, tie } : { ...pub(p), hidden: true, rank, pos: i + 1 };
+      }).map(x => x.hidden ? { id: 'h' + x.pos, name: '?', color: '#BDBDBD', avatar: null, hidden: true, rank: x.pos, pos: x.pos } : x);
     }
     if (boardVisible()) {
       return players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)).map((p, i) => ({ ...pub(p), score: p.score || 0, rank: i + 1 }));
@@ -359,8 +486,10 @@ function createQuiz(ctx) {
     const v = {
       started: flow.started, stage: flow.stage, stepIndex: flow.step, steps: steps.length,
       deadline: flow.deadline ? flow.deadline - now() : 0, total: flow.deadline ? flow.deadline - flow.stageAt : 0,
-      code: game.code, powers: DATA.POWERS, avatars: AVATAR_ITEMS, standings: standings(), boardVisible: boardVisible(),
-      final: flow.stage === 'final' ? { shown: flow.finalShown || 0, total: players().length } : null,
+      code: game.code, powers: DATA.POWERS, rickrollMs: DATA.RICKROLL_MS, avatars: AVATAR_ITEMS, standings: standings(), boardVisible: boardVisible(),
+      final: flow.stage === 'final' ? { shown: flow.finalShown || 0, total: players().length,
+        ties: (flow.finalShown || 0) >= players().length ? ties() : [], tbDone: flow.tbDone || null } : null,
+      tiebreak: flow.tiebreak ? { ids: flow.tiebreak.ids, names: flow.tiebreak.names, rank: flow.tiebreak.rank, track: TIEBREAK_TRACK } : null,
       plan: steps.map(x => x.t === 'race' ? { t: 'race', track: DATA.RACES[x.race].trackId, final: !!DATA.RACES[x.race].final }
                                          : x.t === 'part' ? { t: 'part', n: DATA.PARTS[x.p].n, title: DATA.PARTS[x.p].title } : { t: x.t })
     };
@@ -373,6 +502,7 @@ function createQuiz(ctx) {
       v.race = { track: r.trackId, final: !!r.final, number: s.race + 1, of: DATA.RACES.length };
     }
     if (flow.lastRace && (flow.stage === 'raceResults' || flow.stage === 'raceSkipped')) v.lastRace = flow.lastRace;
+    if (flow.tiebreak) v.race = { track: TIEBREAK_TRACK, tiebreak: true };
     if (q) {
       const showQ = flow.stage !== 'powers';
       v.question = {
@@ -404,7 +534,7 @@ function createQuiz(ctx) {
       }));
       if (flow.stage === 'reveal') {
         // the TV is public: who answered what and who got it right, but never the points
-        v.results = players().map(p => { const r = flow.cur.results[p.id] || {}; return { id: p.id, correct: !!r.correct, right: r.right, a: flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null }; });
+        v.results = players().map(p => { const r = flow.cur.results[p.id] || {}; return { id: p.id, correct: !!r.correct, right: r.right, a: flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null, robbedBy: r.robbedBy || null, swapped: r.swapped || null }; });
         if (q.type === 'choice') v.tally = q.answers.map((_, i) => Object.values(flow.cur.answers).filter(x => x.a === i).length);
       }
       if (flow.stage !== 'powers') {
@@ -418,13 +548,18 @@ function createQuiz(ctx) {
     ensure(p);
     const v = base();
     const st = v.standings.find(x => x.id === p.id);
-    v.me = { id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score, rank: st && st.rank && !st.hidden ? st.rank : null };
+    v.me = { id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score, rank: st && st.rank && !st.hidden ? st.rank : null, tie: !!(st && st.tie) };
     if (flow.stage === 'raceResults' && flow.racePts) v.me.racePts = flow.racePts[p.id];
     if (flow.cur) {
       v.me.ready = flow.cur.ready.has(p.id);
       v.me.answer = flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null;
       v.me.power = flow.cur.powers[p.id] || null;
       v.me.canPower = canPower(p);
+      v.me.offers = flow.cur.offers ? flow.cur.offers[p.id] || [] : [];
+      if (flow.cur.removed && flow.cur.removed[p.id] != null && (flow.stage === 'answering')) v.me.removed = flow.cur.removed[p.id];
+      // Sbircia la classifica: the current ranking, only for this player
+      if ((flow.cur.effects[p.id] || []).some(e => e.power === 'CLASSIFICA') && flow.stage !== 'powers')
+        v.me.peek = players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)).map((x, i) => ({ name: x.name, score: x.score || 0, rank: i + 1, me: x.id === p.id }));
       if (flow.stage === 'answering' || flow.stage === 'reveal') v.me.effects = flow.cur.effects[p.id] || [];
       if (flow.stage === 'reveal') v.me.result = flow.cur.results[p.id];
     }
@@ -440,6 +575,7 @@ function createQuiz(ctx) {
   function attach(s, me, isHost) {
     s.on('quiz_hello', () => { const p = me(); if (isHost()) sendTo(s); else if (p) sendTo(s, p); });
     s.on('quiz_next', () => { if (isHost()) advance(); });
+    s.on('quiz_tiebreak', () => { if (isHost()) startTiebreak(); });
     s.on('quiz_reset', () => { if (isHost()) { if (game.phase !== 'lobby') ctx.backToLobby(); reset(); ctx.broadcastLobby(); } });
     s.on('quiz_avatar', (d = {}) => { const p = me(); if (p && AVATAR_ITEMS.includes(d.avatar)) { p.avatar = d.avatar; ctx.broadcastLobby(); broadcast(); save(); } });
     s.on('quiz_ready', () => { const p = me(); if (p) setReady(p); });
@@ -456,7 +592,7 @@ function createQuiz(ctx) {
     broadcast();
   }
 
-  return { attach, start, advance, reset, restore, ensure, broadcast, onPresence, save, flow, AVATAR_ITEMS, sendTo, playerView };
+  return { attach, start, advance, reset, restore, ensure, broadcast, onPresence, save, flow, AVATAR_ITEMS, sendTo, playerView, endTiebreak };
 }
 
 module.exports = { createQuiz };
