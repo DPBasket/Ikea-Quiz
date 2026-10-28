@@ -35,7 +35,14 @@
   #lobby .players { flex:1; }
   #lobby h2 { font-size:calc(var(--u) * 2.2); font-weight:800; letter-spacing:-.01em; }
   #lobby h2 small { font-weight:400; font-size:.6em; opacity:.8; }
-  #plist { display:grid; grid-template-columns:repeat(auto-fill, minmax(calc(var(--u) * 15), 1fr)); gap:calc(var(--u) * .8); align-content:start; overflow:auto; }
+  #plist { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:calc(var(--u) * .6); align-content:start; overflow:auto; min-height:0; flex:1 1 0; }
+  #plist .pchip { font-size:calc(var(--u) * 1.3); padding:calc(var(--u) * .35) calc(var(--u) * .5); min-width:0; gap:calc(var(--u) * .5); position:relative; }
+  #plist .pchip .rm { position:absolute; right:0; top:0; bottom:0; margin:0; display:none; background:#C4161C; opacity:1; padding:0 .6em; }
+  #plist .pchip:hover .rm, #plist .pchip .rm:focus-visible { display:block; }
+  #plist .pchip span { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.1; }
+  #plist .pchip span small { display:block; margin:0; font-size:.62em; font-weight:400; opacity:.8; }
+  #plist .pchip img { width:calc(var(--u) * 3.4); height:calc(var(--u) * 3.4); flex:none; }
+  #lobby .col { min-height:0; }
   .pchip { display:flex; align-items:center; gap:calc(var(--u) * .8); background:var(--blue-2); padding:calc(var(--u) * .5) calc(var(--u) * .9); font-weight:800; font-size:calc(var(--u) * 1.6); animation:pin .5s cubic-bezier(.22,1,.36,1) both; }
   .pchip img { width:calc(var(--u) * 4.4); height:calc(var(--u) * 4.4); }
   .pchip small { font-size:.6em; font-weight:400; opacity:.8; margin-left:auto; }
@@ -53,6 +60,26 @@
   .actions { display:flex; gap:calc(var(--u) * .5); flex-wrap:wrap; }
   .tools .btn { font-size:calc(var(--u) * 1.1); padding:.6em .9em; }
   #start, #resume { font-size:calc(var(--u) * 2); flex:1; padding:.8em; }
+  #tlist { overflow:auto; min-height:0; flex:1; }
+  .tcard.sel { background:var(--yellow); }
+  .tcard.sel span { color:var(--ink); }
+  .pchip .rm { margin-left:calc(var(--u) * .6); background:none; color:#fff; font-weight:800; font-size:.9em; padding:0 .35em; opacity:.7; }
+  .pchip .rm:hover { opacity:1; background:#C4161C; }
+  .pchip.off { opacity:.6; }
+  .modebar { display:flex; gap:0; }
+  .modebar button { flex:1; font-weight:800; font-size:calc(var(--u) * 1.25); padding:.6em; background:var(--blue-2); color:#fff; }
+  .modebar button.sel { background:#fff; color:var(--blue); }
+  /* host menu: on every screen except the lobby */
+  #hmenu { position:fixed; top:0; right:0; z-index:60; display:none; flex-direction:column; align-items:flex-end; font-family:"Noto Sans", system-ui, sans-serif; }
+  body.inplay #hmenu { display:flex; }
+  #hmenu > button { background:rgba(17,17,17,.55); color:#fff; font-weight:800; font-size:12px; padding:.45em .9em; }
+  #hmenu > button:hover { background:#111; }
+  #hpanel { display:none; flex-direction:column; background:#111; padding:6px; gap:6px; min-width:220px; }
+  #hmenu.open #hpanel { display:flex; }
+  #hpanel button { background:#2A2A2A; color:#fff; font-weight:700; font-size:14px; padding:.7em 1em; text-align:left; }
+  #hpanel button:hover { background:#3A3A3A; }
+  #hpanel button.danger { background:#C4161C; }
+  #quiz .qtop { padding-right:90px !important; }
   #msg { color:var(--yellow); font-weight:700; min-height:1.2em; font-size:calc(var(--u) * 1.2); }
   @media (prefers-reduced-motion: reduce) { .pchip { animation:none; } .btn { transition:none; } }
 
@@ -98,21 +125,29 @@
       <button class="btn ghost" id="addBots">Aggiungi 3 bot</button>
       <button class="btn ghost" id="addBots7">Aggiungi 7 bot</button>
       <button class="btn ghost" id="clearBots">Togli i bot</button>
-      <button class="btn ghost" id="demoRace">Prova solo una gara</button>
+      <button class="btn ghost" id="clearOff" style="display:none">Togli chi è offline</button>
     </div>
   </div>
   <div class="col tracks">
-    <h2>La serata</h2>
+    <div class="modebar" id="modebar"><button id="mQuiz" class="sel">Quiz e gare</button><button id="mRace">Solo gare</button></div>
     <div id="eplan" class="eplan"></div>
     <div id="tlist" style="display:none"></div>
     <div id="msg"></div>
     <div id="imgwarn" class="imgwarn" style="display:none"></div>
-    <div class="actions"><button class="btn y" id="start">Inizia la serata</button></div>
-    <button class="btn y" id="resume" style="display:none">Riprendi la partita</button>
+    <div class="actions"><button class="btn y" id="start">Inizia la serata</button><button class="btn y" id="raceGo" style="display:none">Parti</button></div>
+    <div class="actions"><button class="btn y" id="resume" style="display:none">Riprendi la partita</button>
+      <button class="btn" id="lreset" style="display:none">Azzera il quiz</button></div>
   </div>
 </section>
 
 <section id="quiz" class="screen"></section>
+
+<div id="hmenu"><button id="hmbtn" aria-expanded="false">Menu</button>
+  <div id="hpanel">
+    <button id="hLobby">Vai alla lobby (la partita resta)</button>
+    <button id="hReset" class="danger">Interrompi e azzera il quiz</button>
+  </div>
+</div>
 
 <section id="race" class="screen">
   <canvas id="cv3"></canvas>
@@ -151,6 +186,8 @@ let screen = 'lobby';
 function show(id) {
   screen = id;
   for (const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id === id);
+  document.body.classList.toggle('inplay', id !== 'lobby');
+  $('hmenu').classList.remove('open');
 }
 function pushTicker(text, color) { ticker.unshift({ text, color: color || R.C.ink, at: performance.now() }); ticker.length = Math.min(ticker.length, 5); }
 function setBanner(text, ms, color) { banner = { text, until: performance.now() + (ms || 1800), color: color || R.C.blue }; }
@@ -182,28 +219,65 @@ function renderLobby() {
     const d = document.createElement('div'); d.className = 'pchip';
     const im = document.createElement('img'); im.src = R.avatarURL(p.color, p.avatar || 'lampada', 92); d.append(im);
     const n = document.createElement('span'); n.textContent = p.name; d.append(n);
-    if (p.bot) { const s = document.createElement('small'); s.textContent = 'BOT'; d.append(s); }
-    else if (!p.connected) { const s = document.createElement('small'); s.textContent = 'OFFLINE'; d.append(s); }
+    const tag = p.bot ? 'bot' : !p.connected ? 'offline' : '';
+    if (tag) { const s = document.createElement('small'); s.textContent = tag; n.append(s); }
+    if (!p.bot && !p.connected) d.classList.add('off');
+    if (lobby.phase === 'lobby') {
+      const x = document.createElement('button'); x.className = 'rm'; x.textContent = '×'; x.title = 'Togli ' + p.name; x.setAttribute('aria-label', 'Togli ' + p.name);
+      x.onclick = () => { if (p.bot || !p.connected || confirm(`Togliere ${p.name} dal negozio? Perde i suoi punti.`)) socket.emit('remove_player', { id: p.id }); };
+      d.append(x);
+    }
     list.append(d);
   });
+  $('clearOff').style.display = lobby.players.some(p => !p.bot && !p.connected) ? '' : 'none';
   if (!lobby.players.length) list.innerHTML = '<p class="empty">Ancora nessuno. Inquadrate il codice QR col telefono per entrare.</p>';
   $('pcount').textContent = lobby.players.length;
   const n = lobby.players.length;
   $('start').disabled = n < 1;
   $('msg').textContent = n === 1 ? 'Con un solo giocatore le gare vengono saltate (aggiungi i bot per provare).' : '';
   renderTracks(); renderPlan();
-  $('start').style.display = lobby.quizStarted ? 'none' : '';
-  $('resume').style.display = lobby.quizStarted ? '' : 'none';
+  renderMode();
 }
+// two ways to play: the whole evening (quiz + races) or only kart races on a track of your choice
+let mode = 'quiz';
+function renderMode() {
+  if (!lobby) return;
+  const started = lobby.quizStarted, races = mode === 'race' && !started;
+  $('modebar').style.display = started ? 'none' : '';
+  $('mQuiz').classList.toggle('sel', !races); $('mRace').classList.toggle('sel', races);
+  $('eplan').style.display = races ? 'none' : '';
+  $('tlist').style.display = races ? '' : 'none';
+  $('start').style.display = started || races ? 'none' : '';
+  $('raceGo').style.display = races ? '' : 'none';
+  $('raceGo').textContent = `Parti: ${TR.byId[selTrack] ? TR.byId[selTrack].name : ''}`;
+  $('raceGo').disabled = lobby.players.length < 2;
+  const busy = lobby.phase !== 'lobby';
+  $('resume').style.display = started || busy ? '' : 'none';
+  $('resume').textContent = busy ? 'Torna alla gara' : 'Riprendi la partita';
+  $('lreset').style.display = started || busy ? '' : 'none';
+  if (busy) { $('start').style.display = 'none'; $('raceGo').style.display = 'none'; }
+  if (races && lobby.players.length < 2) $('msg').textContent = 'Per una gara servono almeno 2 giocatori (o aggiungi i bot).';
+}
+$('mQuiz').onclick = () => { mode = 'quiz'; renderLobby(); };
+$('mRace').onclick = () => { mode = 'race'; renderLobby(); };
+$('raceGo').onclick = () => socket.emit('start_race', { trackId: selTrack });
+$('clearOff').onclick = () => socket.emit('remove_offline');
+$('hmbtn').onclick = () => { const m = $('hmenu'); m.classList.toggle('open'); $('hmbtn').setAttribute('aria-expanded', m.classList.contains('open')); };
+$('hLobby').onclick = () => show('lobby');
+$('lreset').onclick = () => { if (confirm('Azzerare il quiz? I punti tornano a zero.')) socket.emit('quiz_reset'); };
+$('hReset').onclick = () => {
+  if (!confirm('Interrompere e azzerare tutto? Gara e quiz si fermano e i punti tornano a zero.')) return;
+  socket.emit('quiz_reset'); show('lobby');
+};
 $('addBots').onclick = () => socket.emit('demo_add', { n: 3 });
 $('addBots7').onclick = () => socket.emit('demo_add', { n: 7 });
 $('clearBots').onclick = () => socket.emit('demo_clear');
-$('demoRace').onclick = () => {
-  if (!lobby || lobby.players.length < 2) socket.emit('demo_add', { n: 3 });
-  setTimeout(() => socket.emit('start_race', { trackId: selTrack }), 150);
-};
 $('start').onclick = () => socket.emit('quiz_next');            // starts the evening
-$('resume').onclick = () => { if (quizView) { show('quiz'); IKEA_QUIZ_HOST.onQuiz(quizView); } };
+$('resume').onclick = () => {
+  if (lobby && (lobby.phase === 'race' || lobby.phase === 'countdown')) return show('race');
+  if (lobby && lobby.phase === 'results') return show('results');
+  if (quizView) { show('quiz'); IKEA_QUIZ_HOST.onQuiz(quizView); }
+};
 function renderPlan() {
   const races = [['showroom', 1], ['magazzino', 2], ['ristorante', 3], ['smaland', 4]], parts = ['Storia IKEA', 'Indovina l\'oggetto', 'Persona o mobile?', 'Città svedese o mobile?'];
   $('eplan').innerHTML = races.map(([t], i) => `<div class="race">Gara ${i + 1} · ${TR.byId[t].name}</div><div>Parte ${i + 1} · ${parts[i]}</div>`).join('')

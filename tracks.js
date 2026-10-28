@@ -129,7 +129,7 @@
     {
       // extra track for the tie-break: from A to B (not a loop), with bridges and a level crossing.
       // Not in the evening's plan: the host starts it only when the final ranking ends in a tie.
-      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, desc: 'Da A a B · due ponti e un incrocio',
+      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, scale: 2.6, desc: 'Da A a B · due ponti e un incrocio',
       width: 166, radius: 70, grip: 8.5, speed: 0.7, start: 'PARTENZA', finish: 'ARRIVO', signature: 'forklift',
       events: ['forklift', 'cart', 'cleaning', 'blackout'],
       rows: [.07, .22, .5, .69, .8],
@@ -228,11 +228,13 @@
   }
 
   function build(def) {
-    const S = SCALE;
+    // a track can be drawn bigger than the others (scale): its store floor grows with it
+    const S = def.scale || SCALE;
     const closed = !def.open;
     const raw = def.pts.map(p => ({ x: p[0] * S, y: p[1] * S, w: p[2] || def.width, z: p[3] || 0 }));
     const main = makePath(densify(fillet(raw, def.radius * S, closed), closed, 24), closed);
-    const t = Object.assign({}, def, { main, L: main.L, branch: null, closed });
+    const t = Object.assign({}, def, { main, L: main.L, branch: null, closed,
+      world: { w: Math.round(WORLD.w * S / SCALE), h: Math.round(WORLD.h * S / SCALE) } });
     // where the race starts and ends along the road (a loop: on the line at s = 0; A→B: a bit in, so the grid fits behind)
     t.startS = closed ? 0 : 400;
     t.finishS = closed ? main.L : main.L - 260;

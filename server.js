@@ -369,7 +369,7 @@ function physics(p, dt, now, tr) {
   p.vx = fx * fwd - fy * lat; p.vy = fy * fwd + fx * lat;
   p.x += p.vx * dt; p.y += p.vy * dt;
   wallCollide(p, tr);
-  const W = TR.WORLD.w, H = TR.WORLD.h, m = 12;
+  const W = tr.world.w, H = tr.world.h, m = 12;
   if (p.x < m) { p.x = m; p.vx = Math.abs(p.vx) * 0.3; }
   if (p.x > W - m) { p.x = W - m; p.vx = -Math.abs(p.vx) * 0.3; }
   if (p.y < m) { p.y = m; p.vy = Math.abs(p.vy) * 0.3; }
@@ -600,7 +600,7 @@ function botSabotage(p, now) {
 function throwItem(p, type, x, y, now) {
   if (game.phase !== 'race' || !p.finished || p.throwsLeft <= 0) return;
   if (!['mash', 'pillow', 'box'].includes(type)) return;
-  x = clamp(+x || 0, 0, TR.WORLD.w); y = clamp(+y || 0, 0, TR.WORLD.h);
+  x = clamp(+x || 0, 0, game.track.world.w); y = clamp(+y || 0, 0, game.track.world.h);
   // on a track with bridges a throw lands on the top level where it falls
   const lvl = game.track.layered ? Math.max(0, ...game.track.main.pts.filter(q => Math.hypot(q.x - x, q.y - y) < q.w / 2 + 10).map(q => q.z || 0)) : 0;
   game.drops.push({ id: uid(), type, x, y, at: now + 700, by: p.id, lvl });
@@ -734,7 +734,7 @@ function step(now, dt) {
       q.vx = Math.cos(q.h) * q.sp; q.vy = Math.sin(q.h) * q.sp;
     }
     q.x += q.vx * dt; q.y += q.vy * dt;
-    if (q.age > q.life || q.x < 0 || q.y < 0 || q.x > TR.WORLD.w || q.y > TR.WORLD.h) { q.dead = true; continue; }
+    if (q.age > q.life || q.x < 0 || q.y < 0 || q.x > tr.world.w || q.y > tr.world.h) { q.dead = true; continue; }
     if (obs.some(o => Math.hypot(q.x - o.x, q.y - o.y) < o.r + 6)) { q.dead = true; io.emit('fx', { k: 'poof', x: r1(q.x), y: r1(q.y) }); continue; }
     for (const p of racers()) {
       if ((p.id === q.owner && q.age < 0.5) || now < p.jumpUntil || now < p.ghostUntil || !sameLevel(p, q)) continue;
@@ -857,6 +857,19 @@ io.on('connection', (s) => {
     broadcastLobby();
   });
   s.on('demo_add', (d = {}) => { if (isHost() && game.phase === 'lobby') { addBots(clamp(+d.n || 3, 1, 7)); for (const p of game.players.values()) quiz.ensure(p); broadcastLobby(); quiz.broadcast(); quiz.save(); } });
+  // the host can take players out of the store (inactive ones, or anyone): only between races
+  const removePlayers = (ids) => {
+    if (!isHost() || game.phase !== 'lobby') return;
+    for (const id of ids) {
+      const p = game.players.get(id);
+      if (!p) continue;
+      game.players.delete(id);
+      if (p.socketId) io.to(p.socketId).emit('removed');
+    }
+    broadcastLobby(); quiz.onPresence(); quiz.save();
+  };
+  s.on('remove_player', (d = {}) => removePlayers([String(d.id || '')]));
+  s.on('remove_offline', () => removePlayers([...game.players.values()].filter(p => !p.bot && !p.connected).map(p => p.id)));
   s.on('demo_clear', () => {
     if (!isHost() || game.phase !== 'lobby') return;
     for (const [id, p] of game.players) if (p.bot) game.players.delete(id);

@@ -60,7 +60,7 @@
             <p class="lede">${esc(p.subtitle)}. ${p.count} domande.</p>
           </div>
           <ol class="steps">${p.rules.map(r => `<li>${esc(r)}</li>`).join('')}
-            <li>Dalla seconda domanda, prima di leggere, ognuno può lanciare un potere: 15 secondi per scegliere.</li></ol>
+            <li>Dalla seconda domanda, prima di leggere, ognuno può lanciare un potere: 30 secondi per scegliere.</li></ol>
         </div>`,
         `${who()}${next('Prima domanda')}`);
     }

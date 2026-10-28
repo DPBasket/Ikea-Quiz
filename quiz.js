@@ -4,7 +4,7 @@
  *
  * Sequenza: benvenuto → gara 1 → PARTE 1 → gara 2 → PARTE 2 → gara 3 → PARTE 3 → gara 4 → PARTE 4
  *           → GARA FINALE (punti ×2) → classifica finale.
- * Ogni domanda: [poteri 15 s, dalla 2ª domanda della parte] → lettura + PRONTO → risposte (definitive) → soluzione.
+ * Ogni domanda: [poteri 30 s, dalla 2ª domanda della parte] → lettura + PRONTO → risposte (definitive) → soluzione.
  *
  * Tutto lo stato vive sul server (e viene salvato su disco), quindi chi chiude il telefono o la pagina
  * rientra esattamente dov'era, con punti, risposta già data e potere già scelto.
@@ -486,7 +486,7 @@ function createQuiz(ctx) {
     const v = {
       started: flow.started, stage: flow.stage, stepIndex: flow.step, steps: steps.length,
       deadline: flow.deadline ? flow.deadline - now() : 0, total: flow.deadline ? flow.deadline - flow.stageAt : 0,
-      code: game.code, powers: DATA.POWERS, rickrollMs: DATA.RICKROLL_MS, avatars: AVATAR_ITEMS, standings: standings(), boardVisible: boardVisible(),
+      code: game.code, powers: DATA.POWERS, rickrollMs: DATA.RICKROLL_MS, lettersMs: DATA.LETTERS_MS, avatars: AVATAR_ITEMS, standings: standings(), boardVisible: boardVisible(),
       final: flow.stage === 'final' ? { shown: flow.finalShown || 0, total: players().length,
         ties: (flow.finalShown || 0) >= players().length ? ties() : [], tbDone: flow.tbDone || null } : null,
       tiebreak: flow.tiebreak ? { ids: flow.tiebreak.ids, names: flow.tiebreak.names, rank: flow.tiebreak.rank, track: TIEBREAK_TRACK } : null,

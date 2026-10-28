@@ -46,17 +46,20 @@
     if (!v.me.peek) return '';
     return `<details class="peek" open><summary>La classifica di adesso (la vedi solo tu)</summary><ol>${v.me.peek.map(p => `<li class="${p.me ? 'you' : ''}"><span>${p.rank}. ${esc(p.name)}</span><b>${p.score}</b></li>`).join('')}</ol></details>`;
   }
+  // Mangia lettere: while it lasts the texts are drawn by eatTick() (letters come back one by one)
+  const eating = () => v.stage === 'answering' && v.me.answer == null && (v.me.effects || []).some(e => e.power === 'LETTERE' && !e.blocked);
+  const txt = t => eating() ? `<span data-eat="${esc(t)}">${esc(eatText(t))}</span>` : esc(t);
   function questionHtml(small) {
     const q = v.question;
-    if (q.word) return `<p class="note">${esc(q.q)}</p><h1 class="word">${esc(q.word)}</h1>`;
-    return `${q.img ? `<img class="pimg" src="${esc(q.img)}" alt="" style="${small ? 'max-height:18vh' : ''}">` : ''}<h1 class="qq">${esc(q.q)}</h1>`;
+    if (q.word) return `<p class="note">${txt(q.q)}</p><h1 class="word">${txt(q.word)}</h1>`;
+    return `${q.img ? `<img class="pimg" src="${esc(q.img)}" alt="" style="${small ? 'max-height:18vh' : ''}">` : ''}<h1 class="qq">${txt(q.q)}</h1>`;
   }
   function answersHtml() {
     const q = v.question, mine = v.me.answer, n = q.answers.length;
     return `<ol class="pans n${n}">${q.answers.map((a, i) => {
       if (v.me.removed === i) return `<li><div class="pa gone">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>Tolta: era sbagliata</span></div></li>`;
       const cls = mine == null ? '' : mine === i ? 'picked' : 'off';
-      return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${esc(a)}</span></button></li>`;
+      return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${txt(a)}</span></button></li>`;
     }).join('')}</ol>
     ${mine != null ? `<p class="lockmsg">Risposta inviata. Non si può più cambiare.</p>` : ''}`;
   }
@@ -192,6 +195,29 @@
     layer().insertAdjacentHTML('beforeend', `<div class="fx-meat" id="meat">${balls}</div>`);
   }
 
+  // which letters are still eaten: each letter has its own moment to come back (same for the whole question)
+  function eatText(t) {
+    const start = fx.key === v.stepIndex && fx.eatStart ? fx.eatStart : performance.now();
+    const ms = v.lettersMs || 12000, k = Math.min(1, Math.max(0, (performance.now() - start) / ms));
+    const gone = 0.75 * (1 - k);                            // at the start 3 letters out of 4 are missing
+    let h = 0; for (const c of String(v.stepIndex)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    let out = '';
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      h = (h * 1103515245 + 12345 + c.charCodeAt(0) * 7 + i) >>> 0;
+      if (/\s/.test(c) || !/\p{L}|\p{N}/u.test(c)) { out += c; continue; }
+      if ((h % 1000) / 1000 >= gone) out += c;
+    }
+    return out.replace(/ {2,}/g, ' ');
+  }
+  function eatTick() {
+    const els = document.querySelectorAll('#quiz [data-eat]');
+    if (!els.length) return;
+    if (!eating()) { els.forEach(el => { el.textContent = el.dataset.eat; el.removeAttribute('data-eat'); }); return; }
+    els.forEach(el => { const t = eatText(el.dataset.eat); if (el.textContent !== t) el.textContent = t; });
+  }
+  setInterval(eatTick, 250);
+
   function applyEffects() {
     const qc = $('qc');
     if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering') clearLayer(); return; }
@@ -201,6 +227,7 @@
       fx.key = v.stepIndex; fx.shown = false; fx.msgUntil = 0; clearLayer();
       fx.boxesUntil = on('SCATOLE') ? performance.now() + 4000 : 0;
       fx.faaah = !!on('FAAAH');
+      fx.eatStart = performance.now();
       const rr = on('RICKROLL');
       if (rr) { const f = v.standings.find(x => x.id === rr.from); fx.rickFrom = f ? f.name : '?'; rickroll(v.rickrollMs || 10000); }
       if (on('POLPETTE')) meatballs();

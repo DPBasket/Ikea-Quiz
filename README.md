@@ -27,9 +27,9 @@ Benvenuto → 🏁 Gara 1 (Showroom) → PARTE 1 Storia IKEA
 
 Ogni parte inizia con una schermata di istruzioni. Ogni domanda segue questi passi:
 
-1. **⚡ Poteri** (dalla 2ª domanda di ogni parte, mai subito dopo una gara): 15 s. A ognuno escono **3 poteri a caso** (diversi per ogni giocatore): ne sceglie uno o nessuno. Prima il potere, poi contro chi.
+1. **⚡ Poteri** (dalla 2ª domanda di ogni parte, mai subito dopo una gara): 30 s. A ognuno escono **3 poteri a caso** (diversi per ogni giocatore): ne sceglie uno o nessuno. Prima il potere, poi contro chi.
 2. **Lettura**: la domanda appare su TV e telefoni, tutti premono **PRONTO**.
-3. **Risposte**: appaiono quando tutti sono pronti. Si tocca la risposta sul telefono: è **definitiva**. Gli ostacoli ricevuti si attivano qui.
+3. **Risposte**: appaiono quando tutti sono pronti, 30 secondi per rispondere. Si tocca la risposta sul telefono: è **definitiva**. Gli ostacoli ricevuti si attivano qui.
 4. **Soluzione**: sulla TV la risposta giusta, chi ha scelto cosa e i punti guadagnati.
 
 Le risposte compaiono **in ordine mescolato** (diverso a ogni partita).
@@ -53,13 +53,18 @@ Il gioco aspetta chi è uscito fino allo scadere del tempo, così chi rientra in
 Lo stato viene salvato anche su disco: se il server si riavvia, la partita riprende dalla stessa domanda.
 Anche lo schermo TV si può ricaricare: con **RIPRENDI LA PARTITA** si torna alla serata.
 
+## Comandi dal computer (schermo grande)
+- **Menu** (in alto a destra, su ogni schermata tranne la lobby): *Vai alla lobby* (la partita resta, poi "Riprendi") oppure *Interrompi e azzera il quiz* (ferma anche una gara in corso e rimette i punti a zero). Nella lobby, a partita iniziata, c'è anche il bottone **Azzera il quiz**.
+- **Togliere giocatori**: nella lobby passa col mouse su un giocatore e premi **×**. Il bottone **Togli chi è offline** toglie in un colpo chi ha chiuso il telefono. Si può fare solo tra una gara e l'altra.
+- **Solo gare**: in alto a destra nella lobby scegli *Solo gare*, poi il percorso (anche SPAREGGIO, che così corrono tutti) e premi **Parti**. Dopo la gara, *Continua* riporta alla lobby.
+
 ## Pari merito: la gara di spareggio
 Se alla fine due o più giocatori hanno gli stessi punti, lo scontrino lo segna ("pari") e sullo schermo compare il bottone **Gara di spareggio**.
-- Corrono **solo i giocatori a pari merito**, sul percorso extra **SPAREGGIO**: non è un giro, si parte da A e si arriva a B (circa 1:45), con due ponti sopraelevati e un incrocio a raso.
+- Corrono **solo i giocatori a pari merito**, sul percorso extra **SPAREGGIO**: non è un giro, si parte da A e si arriva a B (circa 2 minuti), con due ponti sopraelevati e un incrocio a raso.
 - Lo spareggio non dà punti: chi arriva prima passa davanti in classifica. Gli altri sul telefono vedono "Gara di spareggio" e guardano la TV.
 - Dopo la gara premi **Continua** e torni alla classifica finale aggiornata. Se restano altri pari merito (per esempio al 4° posto), il bottone ricompare.
 - All'incrocio a raso non si può girare: chi sbaglia strada viene rimesso sul suo percorso dopo un secondo.
-- Per provarlo prima della serata: nella lobby scegli il percorso SPAREGGIO e premi la gara di prova.
+- Per provarlo prima della serata: nella lobby premi *Solo gare*, scegli SPAREGGIO e premi Parti.
 
 ## Gara: oggetti speciali
 - I cubi "?" ricompaiono dopo mezzo secondo.
@@ -74,7 +79,7 @@ Se sullo schermo, nella lobby, compare l'avviso rosso "foto non trovate", vuol d
 ## Modificare domande e poteri
 Tutto sta in **`quiz-data.js`**: domande, risposte (`correct` = indice della risposta giusta), immagini (file `q-…` in `public/`), istruzioni delle parti, ordine delle gare, tempi e poteri.
 
-I **poteri** (12, ne escono 3 a caso a testa):
+I **poteri** (13, ne escono 3 a caso a testa):
 - **Scudo**: protegge dagli ostacoli di questa domanda. Massimo 2 volte a partita.
 - **Ruba i punti**: i punti che l'avversario fa in questa domanda vanno a te; se indovini tieni anche i tuoi.
 - **Scambio punti**: scambi il totale con un avversario. Esce più spesso a chi è in fondo alla classifica, mai al primo.
@@ -86,6 +91,7 @@ I **poteri** (12, ne escono 3 a caso a testa):
 - **Punti ×2**: se rispondi giusto, punti doppi.
 - **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario.
 - **Scatoloni**: scatoloni che coprono le risposte per 4 secondi.
+- **Mangia lettere**: sul telefono dell'avversario spariscono lettere da domanda e risposte ("Apple" → "ple"); riappaiono poco a poco in 12 secondi.
 - **Togli una sbagliata**: sparisce una risposta sbagliata (non esce nella parte 3).
 
 Video e suono di Rick roll e Faaah partono da YouTube. Su alcuni telefoni (soprattutto iPhone) l'audio automatico può essere bloccato: per andare sul sicuro carica in `public/` un video `q-rickroll.mp4` e un suono `q-faaah.mp3`, e il gioco userà quelli.

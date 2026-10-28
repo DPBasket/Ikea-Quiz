@@ -420,6 +420,8 @@ socket.on('lobby', l => {
     if (l.players.some(p => p.id === me.id)) showWait(); else show('join');
   }
 });
+// the host took me out of the store: back to the join screen
+socket.on('removed', () => { me.id = null; store.set('ikea_pid', ''); show('join'); });
 socket.on('race_countdown', d => {
   if (!d.players.some(p => p.id === me.id)) return;
   race = { track: TR.byId[d.trackId], laps: d.laps, cars: {} };
@@ -597,7 +599,7 @@ function drawHud(now, cw, ch, mine) {
   if (now < flashUntil && Math.floor(now / 140) % 2) { ctx.fillStyle = 'rgba(0,106,167,.25)'; ctx.fillRect(0, 0, cw, ch); }
 }
 function drawMinimap(x, y, w, now) {
-  const t = race.track, s = w / TR.WORLD.w, h = TR.WORLD.h * s;
+  const t = race.track, s = w / t.world.w, h = t.world.h * s;
   ctx.save(); ctx.globalAlpha = 0.85;
   ctx.fillStyle = 'rgba(255,255,255,.7)'; R.rr(ctx, x - 6, y - 6, w + 12, h + 12, 8); ctx.fill();
   ctx.translate(x, y); ctx.scale(s, s);

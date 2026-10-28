@@ -123,16 +123,18 @@ const POWERS = {
   DOPPIO:     { kind: 'bonus',    label: 'Punti ×2',         desc: 'Se rispondi giusto, punti doppi.' },
   POLPETTE:   { kind: 'obstacle', label: 'Polpette',         desc: 'Polpette IKEA che vanno e vengono su tutto il suo schermo.' },
   SCATOLE:    { kind: 'obstacle', label: 'Scatoloni',        desc: 'Scatoloni gli coprono le risposte per 4 secondi.' },
+  LETTERE:    { kind: 'obstacle', label: 'Mangia lettere',   desc: 'Sul suo telefono spariscono lettere da domanda e risposte: riappaiono poco a poco in 12 secondi.' },
   TOGLI:      { kind: 'bonus',    label: 'Togli una sbagliata', desc: 'Una risposta sbagliata sparisce dal tuo telefono.', needsChoices: 3 }
 };
 const POWER_OFFER = 3;          // poteri estratti per ognuno a ogni domanda
 const RICKROLL_MS = 10000;      // quanto dura il blocco del rick roll
+const LETTERS_MS = 12000;      // mangia lettere: in quanto tempo tornano tutte
 
 const TIMES = {
-  powers: 15000,        // scelta del potere
+  powers: 30000,        // scelta del potere
   reading: 30000,       // max per leggere la domanda (poi le risposte appaiono comunque)
-  answer: 20000,        // tempo per rispondere
+  answer: 30000,        // tempo per rispondere
   order: 35000          // tempo per la domanda "metti in ordine"
 };
 
-module.exports = { PARTS, RACES, POWERS, POWER_OFFER, RICKROLL_MS, TIMES };
+module.exports = { PARTS, RACES, POWERS, POWER_OFFER, RICKROLL_MS, LETTERS_MS, TIMES };

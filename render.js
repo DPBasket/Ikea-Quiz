@@ -35,6 +35,7 @@
   }
 
   function decoFor(t) {
+    const W = t.world.w, H = t.world.h;
     if (t._deco) return t._deco;
     const out = [];
     t.zones.forEach(z => {
@@ -56,6 +57,7 @@
   }
 
   function labelSpot(t, f, w, taken) {
+    const W = t.world.w, H = t.world.h;
     taken = taken || [];
     let best = null;
     for (const df of [0, 0.03, -0.03, 0.06, -0.06]) {
@@ -83,6 +85,7 @@
   }
 
   function drawTrack(ctx, t) {
+    const W = t.world.w, H = t.world.h;
     ctx.fillStyle = C.floor; ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
     for (let x = 40; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
@@ -162,6 +165,7 @@
 
   const cache = new Map();
   function trackCanvas(t, scale) {
+    const W = t.world.w, H = t.world.h;
     scale = Math.max(0.1, Math.min(2.2, scale));
     const key = t.id + '@' + scale.toFixed(2);
     if (cache.has(key)) return cache.get(key);
@@ -771,6 +775,7 @@
 
   /* ---------- floor + road textures ---------- */
   function floorTexture(t) {
+    const W = t.world.w, H = t.world.h;
     const S = 2048 / W;
     return canvasTex(2048, Math.round(H * S), (x, w, h) => {
       x.scale(S, S);
@@ -859,6 +864,7 @@
 
   /* ---------- the store ---------- */
   function buildStore(t) {
+    const W = t.world.w, H = t.world.h;
     const group = new T3.Group(), B = new Batch();
     // floor + ceiling
     const floor = new T3.Mesh(new T3.PlaneGeometry(W + 800, H + 800), new T3.MeshLambertMaterial({ color: '#D2CFC8' }));
@@ -1289,6 +1295,7 @@
     if (Math.abs(cam.fov - v.fov) > 0.05) { cam.fov = v.fov; cam.updateProjectionMatrix(); }
   }
   function overviewCam(v, panel) {
+    const W = v.track.world.w, H = v.track.world.h;
     const cam = v.camera;
     const a = cam.aspect, fov = 40, tilt = 0.95;                 // radians from horizontal
     if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); }
