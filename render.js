@@ -1272,6 +1272,8 @@
   }
   function chaseCam(v, d, p, dt) {
     const cam = v.camera;
+    if (cam.view && cam.view.enabled) cam.clearViewOffset();
+    if (cam.far !== 6000) { cam.far = 6000; cam.updateProjectionMatrix(); }
     if (v.camH == null) v.camH = d.h;
     v.camH += Math.atan2(Math.sin(d.h - v.camH), Math.cos(d.h - v.camH)) * Math.min(1, dt * 5);
     const boost = p && (p.f & 1), tall = cam.aspect < 1, dist = tall ? 150 : 92, hgt = tall ? 78 : 46;   // upright phone: pull back
@@ -1297,10 +1299,15 @@
   function overviewCam(v, panel) {
     const W = v.track.world.w, H = v.track.world.h;
     const cam = v.camera;
+    // panel: share of the screen covered at the bottom (the phone's sabotage panel) → fit the store in the rest
+    const vis = 1 - Math.max(0, Math.min(0.8, panel || 0));
     const a = cam.aspect, fov = 40, tilt = 0.95;                 // radians from horizontal
-    if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); }
     const vf = Math.tan(fov * Math.PI / 360);
-    const dist = Math.max((W * 0.57) / (vf * a), (H * 0.64) / vf);
+    const dist = Math.max((W * 0.57) / (vf * a), (H * 0.64) / (vf * vis));
+    const far = Math.max(6000, dist * 2.5);                       // an upright phone needs the camera far away
+    if (cam.fov !== fov || cam.far !== far) { cam.fov = fov; cam.far = far; cam.updateProjectionMatrix(); }
+    if (vis < 1) cam.setViewOffset(1000 * cam.aspect, 1000, 0, 1000 * (1 - vis) / 2, 1000 * cam.aspect, 1000);
+    else if (cam.view && cam.view.enabled) cam.clearViewOffset();
     cam.position.set(W / 2, Math.sin(tilt) * dist, H / 2 + Math.cos(tilt) * dist);
     cam.lookAt(W / 2, 0, H / 2 + 30);
   }

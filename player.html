@@ -87,11 +87,23 @@
   #dark.on { display:flex; }
   #rotate { position:fixed; inset:0; background:var(--blue); color:var(--yellow); display:none; z-index:50; align-items:center; justify-content:center;
     flex-direction:column; gap:16px; font-weight:900; font-size:24px; text-align:center; padding:30px; }
-  #sab { position:absolute; left:0; right:0; bottom:0; display:none; gap:8px; padding:10px; background:rgba(255,255,255,.95); border-top:3px solid var(--ink); align-items:center; }
+  /* sabotage after your finish: pick an item, then tap a driver → it falls right in front of them */
+  #sab { position:absolute; left:0; right:0; bottom:0; display:none; flex-direction:column; gap:8px; padding:12px 12px max(12px, env(safe-area-inset-bottom));
+    background:#fff; border-top:4px solid var(--yellow); max-height:62vh; }
   #sab.on { display:flex; }
-  #sab .opt { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; background:var(--floor); border:2px solid #D6D6D6; font-weight:900; font-size:14px; }
+  #sab h3 { margin:0; font-size:18px; font-weight:900; color:var(--blue); }
+  #sab .how { margin:0; font-size:14px; color:var(--ink); line-height:1.35; }
+  #sab .how b { background:var(--yellow); padding:0 .25em; }
+  #sab .opts { display:flex; gap:6px; }
+  #sab .opt { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:8px 4px; background:var(--floor); border:3px solid transparent; font-weight:900; font-size:13px; }
   #sab .opt.sel { border-color:var(--blue); background:var(--yellow); color:var(--blue); }
-  #sab .left { font-weight:900; font-size:16px; padding:0 10px; white-space:nowrap; }
+  #sab .tg { display:flex; flex-direction:column; gap:6px; overflow:auto; min-height:0; }
+  #sab .tg button { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--blue); color:#fff; font-weight:900; font-size:17px; text-align:left; border:0; }
+  #sab .tg button i { width:18px; height:18px; flex:none; box-shadow:0 0 0 2px #fff; }
+  #sab .tg button span { flex:1; }
+  #sab .tg button small { font-size:12px; font-weight:700; color:var(--yellow); }
+  #sab .tg button:active { background:var(--yellow); color:var(--blue); }
+  #sab .done { margin:0; font-weight:800; font-size:16px; color:var(--ink); }
   body.sab #steer, body.sab #pu, body.sab #gas { display:none; }
 </style>
 </head>
@@ -145,10 +157,14 @@
   <button id="pu"><canvas id="puicon" width="120" height="120"></canvas><span id="pulabel">OGGETTO</span></button>
   <button id="catch"><canvas id="ring" width="300" height="300"></canvas>CATCH!</button>
   <div id="sab">
-    <div class="left" id="sableft">LANCI 0</div>
-    <button class="opt sel" data-t="mash"><canvas width="60" height="60" style="width:30px;height:30px" data-i="MASH_POTATO"></canvas>PURÈ</button>
-    <button class="opt" data-t="pillow"><canvas width="60" height="60" style="width:30px;height:30px" data-i="PILLOW_RED"></canvas>CUSCINO</button>
-    <button class="opt" data-t="box"><canvas width="60" height="60" style="width:30px;height:30px" data-i="DAJLIEN_BOX"></canvas>SCATOLA</button>
+    <h3 id="sabtitle">Sei arrivato! Ora sabota chi corre ancora</h3>
+    <p class="how">1. Scegli cosa lanciare · 2. Tocca un pilota: <b>gli cade davanti</b>. Ti restano <b id="sableft">0</b> lanci.</p>
+    <div class="opts">
+      <button class="opt sel" data-t="mash"><canvas width="60" height="60" style="width:30px;height:30px" data-i="MASH_POTATO"></canvas>PURÈ<small>lo fa scivolare</small></button>
+      <button class="opt" data-t="pillow"><canvas width="60" height="60" style="width:30px;height:30px" data-i="PILLOW_RED"></canvas>CUSCINO<small>lo colpisce</small></button>
+      <button class="opt" data-t="box"><canvas width="60" height="60" style="width:30px;height:30px" data-i="DAJLIEN_BOX"></canvas>SCATOLA<small>lo blocca</small></button>
+    </div>
+    <div class="tg" id="sabtg"></div>
   </div>
   <div id="overlay"></div>
   <div id="dark">BLACKOUT</div>
@@ -474,7 +490,8 @@ socket.on('sabotage_start', d => {
   document.body.classList.add('sab'); $('sab').classList.add('on');
   if (view) view.setMode('overview');
   updateSab();
-  flashMsg(`${d.rank}° · ${R.fmtTime(d.time)}`, 2500, 'SABOTAGGIO! Tocca la pista per lanciare');
+  $('sabtitle').textContent = `Sei arrivato ${d.rank}°! Ora sabota chi corre ancora`;
+  flashMsg(`${d.rank}° · ${R.fmtTime(d.time)}`, 2500, 'Ora puoi lanciare oggetti agli altri');
 });
 socket.on('sabotage_throw', d => { if (d.playerId === me.id && sab) { sab.left = d.left; updateSab(); } });
 function pickJoinAvatar() { renderAvatars('avatars', pickJoinAvatar); }
@@ -504,17 +521,32 @@ document.querySelectorAll('#sab canvas').forEach(c => R.drawItem(c.getContext('2
 document.querySelectorAll('#sab .opt').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); if (sab) { sab.type = b.dataset.t; updateSab(); } }));
 function updateSab() {
   if (!sab) return;
-  $('sableft').textContent = `LANCI ${sab.left}`;
+  $('sableft').textContent = sab.left;
   document.querySelectorAll('#sab .opt').forEach(b => b.classList.toggle('sel', b.dataset.t === sab.type));
+  document.querySelector('#sab .opts').style.display = sab.left > 0 ? '' : 'none';
+  sabTargets(true);
 }
-$('cv3').addEventListener('pointerdown', e => {
-  if (!sab) { tryTrick(); return; }
-  if (!sab || sab.left <= 0 || !view) return;
-  const w = view.pick(e.clientX, e.clientY);
-  if (!w) return;
-  socket.emit('sabotage_throw', { type: sab.type, x: w.x, y: w.y });
-  if (navigator.vibrate) navigator.vibrate(20);
-});
+// the drivers still racing, in race order: one button each
+function sabTargets(force) {
+  if (!sab || !state || !race) return;
+  const list = state.o.map(id => state.p.find(p => p.i === id)).filter(p => p && !p.fin && p.i !== me.id);
+  const key = sab.left + '|' + list.map(p => p.i).join();
+  if (!force && key === sab.key) return;
+  sab.key = key;
+  const box = $('sabtg');
+  if (sab.left <= 0) { box.innerHTML = '<p class="done">Lanci finiti: guarda sullo schermo grande chi ci casca.</p>'; return; }
+  if (!list.length) { box.innerHTML = '<p class="done">Sono arrivati tutti.</p>'; return; }
+  box.innerHTML = list.map(p => { const c = race.cars[p.i] || {}; return `<button data-sab="${p.i}"><i style="background:${c.color || '#999'}"></i><span>${R.esc ? R.esc(c.name || '?') : (c.name || '?').replace(/[<>&]/g, '')}</span><small>${state.o.indexOf(p.i) + 1}° · Lancia</small></button>`; }).join('');
+  box.querySelectorAll('[data-sab]').forEach(b => b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (!sab || sab.left <= 0) return;
+    socket.emit('sabotage_target', { type: sab.type, target: b.dataset.sab });
+    if (navigator.vibrate) navigator.vibrate(25);
+    flashMsg('LANCIATO!', 700, `davanti a ${(race.cars[b.dataset.sab] || {}).name || ''}`);
+  }));
+}
+setInterval(() => sabTargets(false), 400);
+$('cv3').addEventListener('pointerdown', e => { if (!sab) tryTrick(); });
 
 /* ---------- render loop ---------- */
 function flashMsg(text, ms, sub) { msg = { text, sub, until: performance.now() + ms }; }
@@ -529,7 +561,7 @@ function frame(now) {
   const mine = myState();
   if (state) {
     R.lerpCars(disp, state.p, dt);
-    view.update(state, disp, dt, now, { me: me.id, names: !!sab, host: !!sab });
+    view.update(state, disp, dt, now, { me: me.id, names: !!sab, host: !!sab, panel: sab ? $('sab').offsetHeight / Math.max(1, innerHeight) : 0 });
   }
   view.render();
   // HUD
@@ -587,7 +619,7 @@ function drawHud(now, cw, ch, mine) {
   } else {
     ctx.fillStyle = C.yellow; ctx.fillRect(0, 0, cw, 40);
     ctx.fillStyle = C.blue; ctx.font = '900 17px Verdana, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(sab.left > 0 ? `SABOTAGGIO · tocca la pista per lanciare (${sab.left})` : 'LANCI FINITI · goditi lo spettacolo', cw / 2, 21);
+    ctx.fillText(sab.left > 0 ? 'SABOTAGGIO · scegli qui sotto' : 'LANCI FINITI · guarda la gara', cw / 2, 21);
   }
   if (msg && now < msg.until) {
     ctx.font = '900 30px Verdana, sans-serif'; ctx.textAlign = 'center';

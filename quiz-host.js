@@ -70,7 +70,7 @@
         <div class="powers">
           <h1 class="mega">${only ? `Potere bonus per ${esc(only.join(', '))}` : 'Fase poteri'}</h1>
           <p class="lede">${only ? 'Ha fatto il giro più veloce in gara: solo lui sceglie un potere per questa domanda.' : 'Sul telefono ognuno ha tre poteri estratti a caso: ne sceglie uno o nessuno. Gli ostacoli si lanciano contro un avversario.'}</p>
-          <dl class="plist">${Object.entries(v.powers).map(([k, d]) => `<div class="${d.kind}"><dt>${esc(d.label)}</dt><dd>${esc(d.desc)}</dd></div>`).join('')}</dl>
+          <dl class="plist">${Object.entries(v.powers).filter(([k, d]) => !d.parts || (v.part && d.parts.includes(v.part.n))).map(([k, d]) => `<div class="${d.kind}"><dt>${esc(d.label)}</dt><dd>${esc(d.desc)}</dd></div>`).join('')}</dl>
         </div>`,
         `${who('power')}${note(`${v.counts.powers} di ${v.counts.players} hanno scelto`)}${next('Salta', 'quiet')}`);
     }
@@ -111,7 +111,7 @@
           </div>
           ${receipt(v.standings, `Parte ${v.part.n} · ${esc(v.part.title)}`)}
         </div>`,
-        `${note('Tra poco la prossima gara')}${next('Alla gara')}`);
+        `${note(v.grid ? `${esc(v.grid.by)} sta decidendo la griglia della prossima gara sul suo telefono` : 'Tra poco la prossima gara')}${next('Alla gara')}`);
     }
     if (s === 'raceWait' || s === 'raceSkipped') {
       const r = v.race || {};
@@ -240,7 +240,7 @@
   window.IKEA_QUIZ_HOST = {
     onQuiz(view) {
       v = view; endAt = performance.now() + (v.deadline || 0);
-      const key = JSON.stringify([v.stage, v.stepIndex, v.counts, v.who, v.final, v.powerOnly, v.tiebreak, v.standings.map(s => [s.id, s.score, s.connected, s.avatar]), v.attacks && v.attacks.length]);
+      const key = JSON.stringify([v.stage, v.stepIndex, v.counts, v.who, v.final, v.powerOnly, v.tiebreak, v.grid && v.grid.by, v.standings.map(s => [s.id, s.score, s.connected, s.avatar]), v.attacks && v.attacks.length]);
       if (key !== lastKey) { lastKey = key; paint(); }
     },
     handlesStage(stage) { return !['race', 'raceResults', 'lobby'].includes(stage); }

@@ -25,6 +25,7 @@
     if (s === 'welcome') return center(`<img class="me" src="${av(m, 300)}" alt="">${big(esc(m.name))}<p class="note">Guarda lo schermo grande: si parte dalla prima gara.</p>`);
     if (s === 'partIntro') return center(`<p class="kick">Parte ${v.part.n} di 4</p>${big(esc(v.part.title))}
       <ol class="rules">${v.part.rules.map(r => `<li>${esc(r)}</li>`).join('')}<li>Dalla seconda domanda puoi lanciare un potere.</li></ol>`);
+    if (s === 'standings' && v.grid && v.grid.byId === m.id) return gridHtml();
     if (s === 'standings' && !v.boardVisible) return center(`${big('La classifica resta segreta')}<p class="score">${m.score} punti</p><p class="note">Ora la gara finale, a punti doppi. La classifica si scopre alla fine.</p>`);
     if (s === 'standings') return center(`<p class="kick">Fine della parte ${v.part.n}</p>${big(m.rank + '° posto', 'yl')}<p class="score">${m.score} punti</p><p class="note">Nella prossima gara chi è più in alto parte davanti.</p>`);
     if (v.tiebreak && (s === 'race' || s === 'raceResults')) return center(`<p class="kick">Gara di spareggio</p>${big(esc(v.tiebreak.names.join(' contro ')))}<p class="note">Erano a pari merito al ${v.tiebreak.rank}° posto. Corrono solo loro: guarda lo schermo.</p>`);
@@ -46,9 +47,7 @@
     if (!v.me.peek) return '';
     return `<details class="peek" open><summary>La classifica di adesso (la vedi solo tu)</summary><ol>${v.me.peek.map(p => `<li class="${p.me ? 'you' : ''}"><span>${p.rank}. ${esc(p.name)}</span><b>${p.score}</b></li>`).join('')}</ol></details>`;
   }
-  // Mangia lettere: while it lasts the texts are drawn by eatTick() (letters come back one by one)
-  const eating = () => v.stage === 'answering' && v.me.answer == null && (v.me.effects || []).some(e => e.power === 'LETTERE' && !e.blocked);
-  const txt = t => eating() ? `<span data-eat="${esc(t)}">${esc(eatText(t))}</span>` : esc(t);
+  const txt = t => esc(t);
   function questionHtml(small) {
     const q = v.question;
     if (q.word) return `<p class="note">${txt(q.q)}</p><h1 class="word">${txt(q.word)}</h1>`;
@@ -57,7 +56,8 @@
   function answersHtml() {
     const q = v.question, mine = v.me.answer, n = q.answers.length;
     return `<ol class="pans n${n}">${q.answers.map((a, i) => {
-      if (v.me.removed === i) return `<li><div class="pa gone">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>Tolta: era sbagliata</span></div></li>`;
+      const gone = (v.me.removed || []).find(x => x.i === i);
+      if (gone) return `<li><div class="pa gone">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${gone.why === 'via' ? `Tolta da ${esc(gone.from || '?')}` : 'Tolta: era sbagliata'}</span></div></li>`;
       const cls = mine == null ? '' : mine === i ? 'picked' : 'off';
       return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${txt(a)}</span></button></li>`;
     }).join('')}</ol>
@@ -65,6 +65,29 @@
   }
 
   /* ---------- order question (drag or arrows, then confirm) ---------- */
+  // "Decidi la griglia": the whole starting grid of the next race, ▲ ▼ to move (pole / last bought stay put)
+  function gridHtml() {
+    const g = v.grid.order;
+    return `<p class="kick">Decidi la griglia</p><h1 class="qq left">Chi parte davanti nella prossima gara?</h1>
+      <p class="note">In alto parte primo. Si salva da solo a ogni mossa; il presentatore poi fa partire la gara.</p>
+      <div class="olist glist">${g.map((p, i) => `<div class="oitem ${p.lock ? 'lock' : ''}"><div class="n">${i + 1}</div>
+        <img src="${av(p, 96)}" alt=""><span class="gname">${esc(p.name)}${p.lock === 'pole' ? ' <em>pole comprata</em>' : p.lock === 'ultimo' ? ' <em>mandato in fondo</em>' : ''}</span>
+        ${p.lock ? '' : `<div class="mv"><button data-gup="${p.id}" aria-label="Sposta su">▲</button><button data-gdn="${p.id}" aria-label="Sposta giù">▼</button></div>`}</div>`).join('')}</div>`;
+  }
+  function wireGrid() {
+    document.querySelectorAll('[data-gup],[data-gdn]').forEach(b => b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const ids = v.grid.order.map(x => x.id), locked = new Set(v.grid.order.filter(x => x.lock).map(x => x.id));
+      const id = b.dataset.gup || b.dataset.gdn, i = ids.indexOf(id);
+      let j = i + (b.dataset.gup ? -1 : 1);
+      while (j >= 0 && j < ids.length && locked.has(ids[j])) j += b.dataset.gup ? -1 : 1;     // jump over the locked places
+      if (j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      v.grid.order = ids.map(x => v.grid.order.find(o => o.id === x));
+      socket.emit('quiz_grid', { order: ids.filter(x => !locked.has(x)) }); vib(15);
+      paint(true);
+    }));
+  }
   function orderHtml() {
     const q = v.question;
     if (v.me.answer != null) return `<p class="lockmsg">Ordine inviato. Non si può più cambiare.</p>`;
@@ -109,6 +132,7 @@
   /* ---------- powers ---------- */
   function powersHtml() {
     const m = v.me;
+    if (m.penalty) return center(`<p class="kick">Penitenza</p>${big('Niente poteri')}<p class="note">Il turno scorso ti era uscito il Rick roll e non l'hai usato: per questa domanda non puoi scegliere poteri.</p>`);
     if (!m.canPower) return center(`${big('Potere bonus')}<p class="note">${esc((v.powerOnly || []).join(', '))} ha fatto il giro più veloce: solo lui sceglie un potere per questa domanda.</p>`);
     if (m.power) {
       const d = v.powers[m.power.power], t = m.power.target && v.standings.find(s => s.id === m.power.target);
@@ -124,7 +148,9 @@
     }
     return `<h1 class="qq left">${(v.powerOnly || []).length ? 'Potere bonus: il giro più veloce è tuo' : 'Scegli un potere'}</h1>
       <p class="note">Ti sono usciti questi tre: ne scegli uno o nessuno.</p>
-      <div class="pgrid">${(v.me.offers || []).map(k => [k, v.powers[k]]).filter(x => x[1]).map(([k, d]) => `<button class="pbtn ${d.kind}" data-p="${k}"><b>${esc(d.label)}</b><span>${d.kind === 'obstacle' ? 'Contro un avversario. ' : 'Per te. '}${esc(d.desc)}</span>${d.cost ? `<em>Costa ${d.cost} punti</em>` : ''}</button>`).join('')}
+      ${m.special === 'RICKROLL' ? `<p class="lockmsg">Ti è uscito il Rick roll, l'unico di questa parte. Se non lo usi, al prossimo turno niente poteri.</p>` : ''}
+      ${m.special === 'VIAGIUSTA' ? `<p class="lockmsg">Rarissimo: ti è uscito "Via la giusta".</p>` : ''}
+      <div class="pgrid">${(v.me.offers || []).map(k => [k, v.powers[k]]).filter(x => x[1]).map(([k, d]) => `<button class="pbtn ${d.kind} ${d.special ? 'special' : ''}" data-p="${k}"><b>${esc(d.label)}</b><span>${d.kind === 'obstacle' ? 'Contro un avversario. ' : 'Per te. '}${esc(d.desc)}</span>${d.cost ? `<em>Costa ${d.cost} punti</em>` : ''}</button>`).join('')}
         <button class="pbtn skip" data-p="SKIP"><b>Nessun potere</b></button></div>`;
   }
 
@@ -195,39 +221,16 @@
     layer().insertAdjacentHTML('beforeend', `<div class="fx-meat" id="meat">${balls}</div>`);
   }
 
-  // which letters are still eaten: each letter has its own moment to come back (same for the whole question)
-  function eatText(t) {
-    const start = fx.key === v.stepIndex && fx.eatStart ? fx.eatStart : performance.now();
-    const ms = v.lettersMs || 12000, k = Math.min(1, Math.max(0, (performance.now() - start) / ms));
-    const gone = 0.75 * (1 - k);                            // at the start 3 letters out of 4 are missing
-    let h = 0; for (const c of String(v.stepIndex)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    let out = '';
-    for (let i = 0; i < t.length; i++) {
-      const c = t[i];
-      h = (h * 1103515245 + 12345 + c.charCodeAt(0) * 7 + i) >>> 0;
-      if (/\s/.test(c) || !/\p{L}|\p{N}/u.test(c)) { out += c; continue; }
-      if ((h % 1000) / 1000 >= gone) out += c;
-    }
-    return out.replace(/ {2,}/g, ' ');
-  }
-  function eatTick() {
-    const els = document.querySelectorAll('#quiz [data-eat]');
-    if (!els.length) return;
-    if (!eating()) { els.forEach(el => { el.textContent = el.dataset.eat; el.removeAttribute('data-eat'); }); return; }
-    els.forEach(el => { const t = eatText(el.dataset.eat); if (el.textContent !== t) el.textContent = t; });
-  }
-  setInterval(eatTick, 250);
 
   function applyEffects() {
     const qc = $('qc');
     if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering') clearLayer(); return; }
     const list = (v.me.effects || []);
-    const on = p => list.find(e => e.power === p && !e.blocked);
+    const on = p => list.find(e => e.power === p && !e.blocked && !e.dup);     // the same obstacle twice counts once
     if (fx.key !== v.stepIndex) {
       fx.key = v.stepIndex; fx.shown = false; fx.msgUntil = 0; clearLayer();
       fx.boxesUntil = on('SCATOLE') ? performance.now() + 4000 : 0;
       fx.faaah = !!on('FAAAH');
-      fx.eatStart = performance.now();
       const rr = on('RICKROLL');
       if (rr) { const f = v.standings.find(x => x.id === rr.from); fx.rickFrom = f ? f.name : '?'; rickroll(v.rickrollMs || 10000); }
       if (on('POLPETTE')) meatballs();
@@ -283,7 +286,7 @@
       socket.emit('quiz_power', { power: pickPower, target: b.dataset.t }); pickPower = null; vib(30);
     }));
     const pb = $('pback'); if (pb) pb.onclick = () => { pickPower = null; paint(true); };
-    wireOrder();
+    wireOrder(); wireGrid();
     applyEffects();
   }
   setInterval(() => {
@@ -298,7 +301,7 @@
       if (v.stage !== 'powers') pickPower = null;
       // during the answers only my own state matters (the obstacles must not reset when others answer)
       const live = v.stage === 'answering' ? [] : [v.counts, v.standings.length];
-      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, v.me.tie, !!v.tiebreak, live]);
+      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, v.me.tie, !!v.tiebreak, v.grid && v.grid.order.map(x => x.id).join(), live]);
       if (key !== lastKey) { lastKey = key; paint(prevStage === v.stage + v.stepIndex); }
       if (prevStage !== v.stage + v.stepIndex && (v.stage === 'answering' || v.stage === 'powers')) vib(40);
     },

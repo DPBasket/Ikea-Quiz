@@ -353,7 +353,12 @@ socket.on('fx', f => {
   }
 });
 socket.on('blackout', d => { darkUntil = performance.now() + d.ms; });
-socket.on('sabotage_throw', d => pushTicker(`${carName(d.playerId)} lancia dall'alto!`, R.C.red));
+const SAB_LABEL = { mash: 'il purè', pillow: 'un cuscino', box: 'una scatola' };
+socket.on('sabotage_throw', d => {
+  const what = SAB_LABEL[d.type] || 'un oggetto';
+  pushTicker(d.target ? `${carName(d.playerId)} lancia ${what} davanti a ${carName(d.target)}` : `${carName(d.playerId)} lancia ${what} dall'alto`, R.C.red);
+  if (d.target) setBanner(`${carName(d.playerId)} → ${what} davanti a ${carName(d.target)}!`, 1400, R.C.red);
+});
 socket.on('race_finished', d => showResults(d));
 socket.on('quiz_continue', () => { /* TODO(quiz): the host would hand control back to the quiz app here */ });
 

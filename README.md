@@ -66,11 +66,14 @@ Se alla fine due o più giocatori hanno gli stessi punti, lo scontrino lo segna 
 - All'incrocio a raso non si può girare: chi sbaglia strada viene rimesso sul suo percorso dopo un secondo.
 - Per provarlo prima della serata: nella lobby premi *Solo gare*, scegli SPAREGGIO e premi Parti.
 
+## Gara: i lanci di chi è già arrivato
+Chi taglia il traguardo può sabotare chi corre ancora: sul telefono sceglie cosa lanciare (purè, cuscino o scatola) e poi tocca il nome di un pilota. L'oggetto gli cade sulla strada poco davanti, nella sua corsia. Il 1° ha 4 lanci, l'ultimo 1. La TV annuncia ogni lancio ("SARA → una scatola davanti a POÄNG!").
+
 ## Gara: oggetti speciali
 - I cubi "?" ricompaiono dopo mezzo secondo.
 - Chi è indietro trova molto più spesso le polpette turbo.
 - **Bandiera svedese:** rallenta tutti gli altri; più sei avanti, più dura (1° circa 4 s, ultimo circa 1,5 s).
-- **Carrello razzo:** per 5,5 s il kart va veloce e si guida da solo seguendo la pista, ma puoi correggerlo. È immune agli oggetti, e chi tocchi si blocca come contro uno scatolone.
+- **Carrello razzo:** per 5 s il kart va veloce e si guida da solo seguendo la pista, ma puoi correggerlo. È immune agli oggetti, e chi tocchi si blocca come contro uno scatolone.
 
 ## Foto del quiz
 Le foto sono nella cartella `public` e hanno nomi che iniziano con `q-`.
@@ -79,20 +82,23 @@ Se sullo schermo, nella lobby, compare l'avviso rosso "foto non trovate", vuol d
 ## Modificare domande e poteri
 Tutto sta in **`quiz-data.js`**: domande, risposte (`correct` = indice della risposta giusta), immagini (file `q-…` in `public/`), istruzioni delle parti, ordine delle gare, tempi e poteri.
 
-I **poteri** (13, ne escono 3 a caso a testa):
+I **poteri**: ne escono 3 a caso a testa. Quelli semplici escono spesso, quelli che riempiono lo schermo (Faaah, Polpette, Scatoloni) circa un terzo delle volte.
 - **Scudo**: protegge dagli ostacoli di questa domanda. Massimo 2 volte a partita.
 - **Ruba i punti**: i punti che l'avversario fa in questa domanda vanno a te; se indovini tieni anche i tuoi.
 - **Scambio punti**: scambi il totale con un avversario. Esce più spesso a chi è in fondo alla classifica, mai al primo.
 - **Pole position**: paghi 30 punti e parti primo alla prossima gara.
 - **In fondo alla griglia**: paghi 20 punti e scegli chi parte ultimo alla prossima gara.
-- **Rick roll**: sul telefono dell'avversario parte il video (10 s) e non può rispondere finché dura.
-- **Faaah**: al primo tocco dell'avversario su una risposta parte il suono col gattino e la risposta non vale; poi riprova.
+- **Decidi la griglia** (solo parti 2 e 3, uno per parte): a fine parte, sul telefono, metti in ordine tutta la griglia della gara successiva. Chi ha comprato la pole o è stato mandato in fondo resta bloccato al suo posto.
 - **Sbircia la classifica**: vedi la classifica attuale sul tuo telefono.
 - **Punti ×2**: se rispondi giusto, punti doppi.
-- **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario.
-- **Scatoloni**: scatoloni che coprono le risposte per 4 secondi.
-- **Mangia lettere**: sul telefono dell'avversario spariscono lettere da domanda e risposte ("Apple" → "ple"); riappaiono poco a poco in 12 secondi.
 - **Togli una sbagliata**: sparisce una risposta sbagliata (non esce nella parte 3).
+- **Faaah**: al primo tocco dell'avversario su una risposta parte il suono col gattino e la risposta non vale; poi riprova.
+- **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario. Se due persone le mandano alla stessa, non raddoppiano.
+- **Scatoloni**: scatoloni che coprono le risposte per 4 secondi.
+
+Due poteri **speciali** non escono a caso: il quiz li dà a una sola persona.
+- **Rick roll**: uno solo per parte (4 in tutto). Sul telefono dell'avversario parte il video (10 s) e non può rispondere finché dura. Chi lo riceve e non lo usa, al turno dopo non può scegliere poteri (penitenza).
+- **Via la giusta**: da 1 a 2 volte in tutto il quiz. Sul telefono dell'avversario sparisce la risposta giusta, quindi sbaglia per forza. Lo scudo lo ferma.
 
 Video e suono di Rick roll e Faaah partono da YouTube. Su alcuni telefoni (soprattutto iPhone) l'audio automatico può essere bloccato: per andare sul sicuro carica in `public/` un video `q-rickroll.mp4` e un suono `q-faaah.mp3`, e il gioco userà quelli.
 Per aggiungerne uno nuovo serve una voce in `POWERS` (`quiz-data.js`) e il suo effetto in `public/quiz-player.js` (funzione `applyEffects`).

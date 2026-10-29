@@ -129,8 +129,8 @@
     {
       // extra track for the tie-break: from A to B (not a loop), with bridges and a level crossing.
       // Not in the evening's plan: the host starts it only when the final ranking ends in a tie.
-      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, scale: 2.6, desc: 'Da A a B · due ponti e un incrocio',
-      width: 166, radius: 70, grip: 8.5, speed: 0.7, start: 'PARTENZA', finish: 'ARRIVO', signature: 'forklift',
+      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, scale: 3.35, desc: 'Da A a B · due ponti e un incrocio',
+      width: 170, radius: 70, grip: 9, speed: 1, start: 'PARTENZA', finish: 'ARRIVO', signature: 'forklift',
       events: ['forklift', 'cart', 'cleaning', 'blackout'],
       rows: [.07, .22, .5, .69, .8],
       // [x, y, width?, level] — level 1 = on a bridge (the 2D physics keeps the two levels apart)

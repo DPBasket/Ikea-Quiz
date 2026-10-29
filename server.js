@@ -592,20 +592,32 @@ function botSabotage(p, now) {
   if (!list.length) return;
   const t = list[Math.floor(Math.random() * list.length)];
   const types = ['mash', 'pillow', 'box'];
-  throwItem(p, types[Math.floor(Math.random() * 3)], t.x + t.vx * 0.7, t.y + t.vy * 0.7, now);
+  throwAt(p, types[Math.floor(Math.random() * 3)], t.id, now);
   p.botThrowAt = now + rnd(2500, 4500);
 }
 
+// sabotage aimed at a driver: the item falls on the road just in front of them, in their lane
+function throwAt(p, type, targetId, now) {
+  const t = game.players.get(targetId);
+  if (!t || t.finished || !inRace(t) || t === p) return;
+  const tr = game.track, spd = Math.hypot(t.vx, t.vy);
+  const q = TR.pointAt(tr.main, t.lastS), nx = -Math.sin(q.ang), ny = Math.cos(q.ang);
+  const lat = clamp((t.x - q.x) * nx + (t.y - q.y) * ny, -q.w / 2 + 20, q.w / 2 - 20);
+  const a = TR.pointAt(tr.main, t.lastS + 140 + spd * 0.9);            // ~0.7 s of the fall + a bit
+  const x = a.x - Math.sin(a.ang) * lat, y = a.y + Math.cos(a.ang) * lat;
+  throwItem(p, type, x, y, now, { target: t.id, lvl: a.z || 0 });
+}
+
 /* ---------- sabotage ---------- */
-function throwItem(p, type, x, y, now) {
+function throwItem(p, type, x, y, now, aim) {
   if (game.phase !== 'race' || !p.finished || p.throwsLeft <= 0) return;
   if (!['mash', 'pillow', 'box'].includes(type)) return;
   x = clamp(+x || 0, 0, game.track.world.w); y = clamp(+y || 0, 0, game.track.world.h);
   // on a track with bridges a throw lands on the top level where it falls
-  const lvl = game.track.layered ? Math.max(0, ...game.track.main.pts.filter(q => Math.hypot(q.x - x, q.y - y) < q.w / 2 + 10).map(q => q.z || 0)) : 0;
+  const lvl = aim && aim.lvl != null ? aim.lvl : game.track.layered ? Math.max(0, ...game.track.main.pts.filter(q => Math.hypot(q.x - x, q.y - y) < q.w / 2 + 10).map(q => q.z || 0)) : 0;
   game.drops.push({ id: uid(), type, x, y, at: now + 700, by: p.id, lvl });
   p.throwsLeft--;
-  io.emit('sabotage_throw', { playerId: p.id, type, x: r1(x), y: r1(y), left: p.throwsLeft });
+  io.emit('sabotage_throw', { playerId: p.id, type, x: r1(x), y: r1(y), left: p.throwsLeft, target: aim ? aim.target : null });
 }
 function updateDrops(now) {
   for (const d of game.drops) {
@@ -911,6 +923,7 @@ io.on('connection', (s) => {
   s.on('trick', () => { const p = me(); if (p) doTrick(p); });
   s.on('catch', (d = {}) => { const p = me(); if (p) catchIce(p, !!d.ok); });
   s.on('sabotage_throw', (d = {}) => { const p = me(); if (p) throwItem(p, d.type, d.x, d.y, Date.now()); });
+  s.on('sabotage_target', (d = {}) => { const p = me(); if (p && ['mash', 'pillow', 'box'].includes(d.type)) throwAt(p, d.type, String(d.target || ''), Date.now()); });
 
   s.on('disconnect', () => {
     const p = me();
