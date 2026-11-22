@@ -896,6 +896,7 @@ io.on('connection', (s) => {
     if (!isHost() || game.phase === 'lobby') return;
     backToLobby();
     if (quiz.flow.started && quiz.flow.tiebreak) return quiz.endTiebreak();                                    // tie-break cancelled: back to the ranking
+    if (quiz.flow.started && quiz.flow.extra && quiz.flow.extra.phase === 'race') return quiz.endExtra('Ultimo giro annullato: la classifica resta questa.');
     if (quiz.flow.started && quiz.flow.stage === 'race') { quiz.flow.stage = 'raceWait'; quiz.broadcast(); }     // RIAVVIA or SALTA from the host
   });
   s.on('quiz_skip_race', () => {

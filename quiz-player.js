@@ -31,7 +31,9 @@
     if (v.tiebreak && (s === 'race' || s === 'raceResults')) return center(`<p class="kick">Gara di spareggio</p>${big(esc(v.tiebreak.names.join(' contro ')))}<p class="note">Erano a pari merito al ${v.tiebreak.rank}° posto. Corrono solo loro: guarda lo schermo.</p>`);
     if (s === 'raceWait' || s === 'raceSkipped' || s === 'raceResults' || s === 'race') return center(`${big('Guarda lo schermo')}<p class="note">La gara sta per ripartire.</p>`);
     if (s === 'final' && !m.rank) return center(`${big('Guarda lo schermo')}<p class="note">Lo scontrino finale si stampa dall'ultimo al primo. Il tuo nome non è ancora uscito.</p>`);
-    if (s === 'final') return center(`<img class="me" src="${av(m, 300)}" alt="">${big(m.rank + '°' + (m.tie ? ' pari merito' : ''), 'yl')}<p class="score">${m.score} punti</p><p class="note">${m.tie ? 'Può deciderlo una gara di spareggio: tieni pronto il telefono.' : 'Tack! Grazie per aver giocato.'}</p>`);
+    if (s === 'final') return center(`<img class="me" src="${av(m, 300)}" alt="">${big(m.rank + '°' + (m.tie ? ' pari merito' : ''), 'yl')}<p class="score">${m.score} punti</p><p class="note">${m.tie ? 'Può deciderlo una gara di spareggio: tieni pronto il telefono.' : v.extra && v.extra.note ? esc(v.extra.note) : 'Tack! Grazie per aver giocato.'}</p>`);
+    if (s === 'extraVote') return voteHtml();
+    if (s === 'wheel') return wheelHtml();
     if (s === 'powers') return powersHtml();
     if (s === 'reading') return `
       ${peekHtml()}${questionHtml()}
@@ -40,6 +42,57 @@
     if (s === 'answering') return `${peekHtml()}${questionHtml(true)}${q.type === 'order' ? orderHtml() : answersHtml()}`;
     if (s === 'reveal') return revealHtml();
     return center('<p class="note">Un attimo…</p>');
+  }
+
+  /* ---------- gran finale ---------- */
+  function voteHtml() {
+    const m = v.me, c = (v.extra && v.extra.vote) || { yes: 0, no: 0 };
+    const head = `<p class="kick">Gran finale</p>${big('Ultimo giro sulla pista 6?')}
+      <p class="note">Non vale punti. Si parte nell'ordine della classifica finale e chi vince gira la ruota: può cambiare la classifica.</p>`;
+    if (m.vote == null) return center(`${head}<button class="act" id="xyes">Sì, corriamo</button><button class="act quiet" id="xno">No, basta così</button>
+      <p class="note">Basta la metà dei voti per correre.</p>`);
+    return center(`${head}<p class="lockmsg">Hai votato ${m.vote ? 'sì' : 'no'}. Finora: ${c.yes} sì, ${c.no} no.</p>`);
+  }
+  // how many swaps of two neighbours turn one order into the other
+  function swaps(a, b) { const pos = new Map(b.map((id, i) => [id, i])), arr = a.map(id => pos.get(id)); let n = 0; for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) if (arr[i] > arr[j]) n++; return n; }
+  function wheelHtml() {
+    const w = v.wheel || {}, win = (w.winner && w.winner.name) || '?', k = w.kind ? w.kinds[w.kind] : null;
+    if (w.phase === 'ready') return w.mine
+      ? center(`<p class="kick">${w.again ? 'La ruota dice: gira ancora!' : 'Hai vinto l\'ultimo giro!'}</p>${big(w.again ? 'Gira di nuovo' : 'Gira la ruota')}<p class="note">Più è grande il premio, meno spicchi ha. Guarda lo schermo grande mentre gira.</p><button class="act xspin" id="xspin">Gira!</button>`)
+      : center(`<p class="kick">Gran finale</p>${big(esc(win) + ' gira la ruota')}<p class="note">Guarda lo schermo grande.</p>`);
+    if (w.phase === 'spinning') return center(`<p class="kick">La ruota gira…</p>${big('Guarda lo schermo')}`);
+    if (w.phase === 'edit') {
+      if (!w.mine) return center(`<p class="kick">${esc(k.label)}</p>${big(esc(win) + ' sta cambiando la classifica')}<p class="note">${esc(k.long)}</p>`);
+      const used = swaps(w.before, w.order.map(p => p.id));
+      return `<p class="kick">${esc(k.label)}</p><h1 class="qq left">${esc(k.long)}</h1>
+        ${w.moves != null ? `<p class="lockmsg">Mosse usate: ${used} di ${w.moves}</p>` : `<p class="note">In alto il primo. Sposta chi vuoi, poi conferma.</p>`}
+        <div class="olist glist">${w.order.map((p, i) => `<div class="oitem ${p.id === v.me.id ? 'mine' : ''}"><div class="n">${i + 1}</div>
+          <img src="${av(p, 96)}" alt=""><span class="gname">${esc(p.name)}${w.before[i] !== p.id ? ' <em>spostato</em>' : ''}</span>
+          <div class="mv"><button data-wup="${p.id}" aria-label="Sposta su">▲</button><button data-wdn="${p.id}" aria-label="Sposta giù">▼</button></div></div>`).join('')}</div>
+        <button class="act quiet" id="xreset">Rimetti com'era</button><button class="act" id="xok">Conferma la classifica</button>`;
+    }
+    const mine = v.standings.find(p => p.id === v.me.id);
+    return center(`<p class="kick">La ruota dice</p>${big(esc(k ? k.label : ''), 'yl')}<p class="note">${esc(w.note || (k && k.long) || '')}</p>`);
+  }
+  function wireExtra() {
+    const y = $('xyes'), n = $('xno');
+    // pointerdown: the screen may repaint between the touch and the click
+    const tap = (el, fn) => el && el.addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
+    tap(y, () => { socket.emit('quiz_vote', { yes: true }); vib(25); v.me.vote = true; paint(true); });
+    tap(n, () => { socket.emit('quiz_vote', { yes: false }); vib(25); v.me.vote = false; paint(true); });
+    const sp = $('xspin'); tap(sp, () => { socket.emit('quiz_spin'); sp.disabled = true; vib([30, 40, 30]); });
+    const ok = $('xok'); tap(ok, () => { socket.emit('quiz_wheel_done'); vib(30); });
+    const rs = $('xreset'); if (rs) rs.onclick = () => { socket.emit('quiz_wheel_order', { order: v.wheel.before }); };
+    document.querySelectorAll('[data-wup],[data-wdn]').forEach(b => b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const w = v.wheel, ids = w.order.map(p => p.id), id = b.dataset.wup || b.dataset.wdn, i = ids.indexOf(id), j = i + (b.dataset.wup ? -1 : 1);
+      if (j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      if (w.moves != null && swaps(w.before, ids) > w.moves) { vib([20, 30, 20]); return; }      // no moves left
+      w.order = ids.map(x => w.order.find(p => p.id === x));
+      socket.emit('quiz_wheel_order', { order: ids }); vib(12);
+      paint(true);
+    }));
   }
 
   // Sbircia la classifica
@@ -205,7 +258,7 @@
     const tick = setInterval(() => {
       const left = until - performance.now(), t = $('rickt');
       if (left <= 0 || !t) { clearInterval(tick); const r = $('rick'); if (r) r.remove(); fx.rickOn = false; return; }
-      t.textContent = `Rick roll da ${fx.rickFrom}: ancora ${Math.ceil(left / 1000)} s`;
+      t.textContent = `${fx.rickFrom ? 'Rick roll da ' + fx.rickFrom : 'Rick roll dalla ruota'}: ancora ${Math.ceil(left / 1000)} s`;
     }, 200);
   }
   function faaah(then) {
@@ -224,7 +277,7 @@
 
   function applyEffects() {
     const qc = $('qc');
-    if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering') clearLayer(); return; }
+    if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering' && v.stage !== 'wheel') clearLayer(); return; }   // the wheel's rick roll must survive repaints
     const list = (v.me.effects || []);
     const on = p => list.find(e => e.power === p && !e.blocked && !e.dup);     // the same obstacle twice counts once
     if (fx.key !== v.stepIndex) {
@@ -286,7 +339,12 @@
       socket.emit('quiz_power', { power: pickPower, target: b.dataset.t }); pickPower = null; vib(30);
     }));
     const pb = $('pback'); if (pb) pb.onclick = () => { pickPower = null; paint(true); };
-    wireOrder(); wireGrid();
+    wireOrder(); wireGrid(); wireExtra();
+    // the wheel landed on Rick roll: the winner gets rick rolled, like during the quiz
+    const w = v.wheel;
+    if (v.stage === 'wheel' && w && w.mine && w.phase === 'done' && w.kind === 'RICKROLL' && fx.wheelRick !== w.spins) {
+      fx.wheelRick = w.spins; fx.rickFrom = ''; rickroll(v.rickrollMs || 10000);
+    }
     applyEffects();
   }
   setInterval(() => {
@@ -301,7 +359,8 @@
       if (v.stage !== 'powers') pickPower = null;
       // during the answers only my own state matters (the obstacles must not reset when others answer)
       const live = v.stage === 'answering' ? [] : [v.counts, v.standings.length];
-      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, v.me.tie, !!v.tiebreak, v.grid && v.grid.order.map(x => x.id).join(), live]);
+      const key = JSON.stringify([v.stage, v.stepIndex, v.me.ready, v.me.answer, v.me.power, v.me.score, v.me.rank, v.me.tie, !!v.tiebreak, v.grid && v.grid.order.map(x => x.id).join(), live,
+        v.me.vote, v.extra && [v.extra.phase, v.extra.note, v.me.vote != null && v.extra.vote], v.wheel && [v.wheel.phase, v.wheel.spins, v.wheel.order && v.wheel.order.map(p => p.id).join()]]);
       if (key !== lastKey) { lastKey = key; paint(prevStage === v.stage + v.stepIndex); }
       if (prevStage !== v.stage + v.stepIndex && (v.stage === 'answering' || v.stage === 'powers')) vib(40);
     },

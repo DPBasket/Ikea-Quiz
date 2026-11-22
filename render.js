@@ -800,7 +800,7 @@
           x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke();
         }
       }
-      // the shadow of the bridges on the floor, then the roads below again on top of it
+      // the shadow of the bridges on the floor, then the roads below again on top of it // taste-skill-ignore: 3D scene
       if (t.layered) {
         const m = t.main.n - 1, P = t.main.pts;
         x.strokeStyle = 'rgba(60,50,40,.22)';
@@ -994,7 +994,7 @@
     add(new T3.SphereGeometry(5.8, 12, 10, 0, TAU, 0, Math.PI / 1.8), body, -0.5, 28.5, 0);   // helmet
     add(new T3.BoxGeometry(1.5, 2.5, 7), yel, 5.3, 28, 0);                       // visor stripe
     add(new T3.CylinderGeometry(4, 4, 1.2, 12), dark, 7, 16, 0, 0, 0, Math.PI / 2.6);          // steering wheel
-    const shadow = new T3.Mesh(new T3.CircleGeometry(17, 16), new T3.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
+    const shadow = new T3.Mesh(new T3.CircleGeometry(17, 16), new T3.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })); // taste-skill-ignore: kart shadow in the 3D scene
     shadow.rotation.x = -Math.PI / 2;
     const root = new T3.Group(); root.add(g);
     const label = labelSprite(name, color); label.position.y = 46; root.add(label);

@@ -141,4 +141,27 @@ const TIMES = {
   order: 35000          // tempo per la domanda "metti in ordine"
 };
 
-module.exports = { PARTS, RACES, POWERS, POWER_OFFER, RICKROLL_MS, RARE_MIN, RARE_MAX, TIMES };
+/* GRAN FINALE: dopo la classifica si vota un ultimo giro sulla pista 6 (non dà punti).
+ * Chi lo vince gira la ruota. La probabilità di ogni casella = quanto spazio occupa sulla ruota:
+ * gli spicchi normali valgono 1, quelli sottili (WHEEL_W) meno. In tutto 16,5:
+ * NIENTE 6 (36%) · CIOCCOLATINO 3 (18%) · SCAMBIO 3 (18%) · SPOSTA3 2 (12%) · DECIDI 1 (6%) · GIRA 1 (6%) · RICKROLL 0,5 (3%) */
+const WHEEL_KINDS = {
+  NIENTE:       { label: 'Niente',             long: 'Non succede niente: la classifica resta com\'è.' },
+  CIOCCOLATINO: { label: 'Cioccolatino',       long: 'Hai vinto un cioccolatino! La classifica resta com\'è.' },
+  SCAMBIO:      { label: 'Scambio ↑',          long: 'Scambi posto con chi ti sta sopra in classifica.' },
+  SPOSTA3:      { label: 'Sposta 3',           long: 'Hai 3 mosse: sposti te o gli altri di una posizione per mossa.' },
+  DECIDI:       { label: 'Decidi tu',          long: 'Decidi tu tutta la classifica finale.' },
+  GIRA:         { label: 'Gira ancora',        long: 'Gira ancora la ruota!' },
+  RICKROLL:     { label: 'Rick roll',          long: 'Vieni rick rollato! La classifica resta com\'è.' }
+};
+const WHEEL = ['NIENTE', 'CIOCCOLATINO', 'SCAMBIO', 'NIENTE', 'SPOSTA3', 'GIRA', 'NIENTE', 'SCAMBIO', 'CIOCCOLATINO',
+               'NIENTE', 'DECIDI', 'NIENTE', 'SCAMBIO', 'RICKROLL', 'CIOCCOLATINO', 'NIENTE', 'SPOSTA3'];
+const WHEEL_W = { RICKROLL: 0.5 };   // spicchio sottile: metà probabilità di uno normale
+const EXTRA = {
+  track: 'spareggio',
+  voteMs: 25000,       // tempo per votare l'ultimo giro
+  spinMs: 11000,       // quanto gira la ruota (almeno 10 secondi)
+  moves: 3             // mosse di "Sposta 3"
+};
+
+module.exports = { PARTS, RACES, POWERS, POWER_OFFER, RICKROLL_MS, RARE_MIN, RARE_MAX, TIMES, WHEEL, WHEEL_W, WHEEL_KINDS, EXTRA };

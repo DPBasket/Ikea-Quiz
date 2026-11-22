@@ -20,7 +20,7 @@
   .btn:focus-visible { outline:4px solid var(--yellow); outline-offset:3px; }
   .btn.y { background:var(--yellow); color:var(--blue); }
   .btn.ghost { background:var(--blue-2); color:#fff; }
-  .btn:disabled { background:#7A9CC2; color:#DCE6F0; cursor:not-allowed; transform:none; }
+  .btn:disabled { background:#00447E; color:#C9D7E6; cursor:not-allowed; transform:none; }
 
   /* lobby: the blue field, the code big, the players as they arrive */
   #lobby { --u:min(1vw, 1.777vh); padding:calc(var(--u) * 3); gap:calc(var(--u) * 3.5); color:#fff; background:var(--blue); }
@@ -47,12 +47,15 @@
   .pchip img { width:calc(var(--u) * 4.4); height:calc(var(--u) * 4.4); }
   .pchip small { font-size:.6em; font-weight:400; opacity:.8; margin-left:auto; }
   @keyframes pin { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
-  .empty { font-weight:700; font-size:calc(var(--u) * 1.8); opacity:.85; max-width:24ch; line-height:1.35; }
+  .empty { grid-column:1 / -1; max-width:30ch; line-height:1.4; font-size:calc(var(--u) * 1.6); }
+  .empty .big { font-weight:800; font-size:calc(var(--u) * 3.2); line-height:1.05; letter-spacing:-.02em; margin:0 0 .5em; color:var(--yellow); }
+  .empty p { margin:0; }
   #lobby .tracks { width:calc(var(--u) * 33); }
   #tlist { display:flex; flex-direction:column; gap:8px; }
-  .eplan { display:flex; flex-direction:column; gap:calc(var(--u) * .3); overflow:auto; }
-  .eplan div { background:var(--blue-2); padding:.55em .9em; font-weight:700; font-size:calc(var(--u) * 1.3); }
-  .eplan .race { background:var(--yellow); color:var(--blue); }
+  .eplan { display:flex; flex-direction:column; overflow:auto; min-height:0; flex:1 1 auto; }
+  .eplan .route li { min-height:calc(var(--u) * 2.75); }
+  .eplan .route .nm b { font-size:calc(var(--u) * 1.45); }
+  .eplan .route .part .nm b { font-size:calc(var(--u) * 1.2); }
   .tcard { display:flex; gap:12px; align-items:center; background:#fff; padding:8px; text-align:left; }
   .tcard canvas { width:120px; height:75px; flex:none; }
   .tcard b { display:block; font-size:16px; font-weight:800; }
@@ -230,7 +233,7 @@ function renderLobby() {
     list.append(d);
   });
   $('clearOff').style.display = lobby.players.some(p => !p.bot && !p.connected) ? '' : 'none';
-  if (!lobby.players.length) list.innerHTML = '<p class="empty">Ancora nessuno. Inquadrate il codice QR col telefono per entrare.</p>';
+  if (!lobby.players.length) list.innerHTML = '<div class="empty"><p class="big">Il negozio apre adesso.</p><p>Inquadrate il codice QR col telefono, scegliete nome, oggetto e colore: il vostro personaggio comparirà qui.</p></div>';
   $('pcount').textContent = lobby.players.length;
   const n = lobby.players.length;
   $('start').disabled = n < 1;
@@ -280,8 +283,11 @@ $('resume').onclick = () => {
 };
 function renderPlan() {
   const races = [['showroom', 1], ['magazzino', 2], ['ristorante', 3], ['smaland', 4]], parts = ['Storia IKEA', 'Indovina l\'oggetto', 'Persona o mobile?', 'Città svedese o mobile?'];
-  $('eplan').innerHTML = races.map(([t], i) => `<div class="race">Gara ${i + 1} · ${TR.byId[t].name}</div><div>Parte ${i + 1} · ${parts[i]}</div>`).join('')
-    + `<div class="race">Gara finale, punti doppi · ${TR.byId.casse.name}</div><div>Lo scontrino finale</div>`;
+  // the evening as the walk through the store (same drawing as on the welcome screen)
+  const stops = [];
+  races.forEach(([t], i) => { stops.push({ kind: 'race', name: TR.byId[t].name, sub: 'gara' }); stops.push({ kind: 'part', name: parts[i], sub: 'parte ' + (i + 1) }); });
+  stops.push({ kind: 'race', name: TR.byId.casse.name, sub: 'gara finale, punti doppi' }, { kind: 'end', name: 'Scontrino finale', sub: 'la classifica' });
+  $('eplan').innerHTML = window.IKEA_QUIZ_HOST ? IKEA_QUIZ_HOST.routeHtml(stops, -1, { entrance: true }) : '';
 }
 let quizView = null;
 // check that every quiz picture is on the server (a folder can get lost when uploading to GitHub)
@@ -291,7 +297,7 @@ fetch('/quiz-images.json').then(r => r.json()).then(list => Promise.all(list.map
   const miss = res.filter(Boolean);
   if (!miss.length) return;
   $('imgwarn').style.display = '';
-  $('imgwarn').innerHTML = `⚠ ${miss.length} foto del quiz non trovate sul server (${miss.slice(0, 4).join(', ')}${miss.length > 4 ? '…' : ''}).<br>Caricale su GitHub nella cartella <b>public</b> (i file che iniziano con <b>q-</b>).`;
+  $('imgwarn').innerHTML = `Attenzione: ${miss.length} foto del quiz non trovate sul server (${miss.slice(0, 4).join(', ')}${miss.length > 4 ? '…' : ''}).<br>Caricale su GitHub nella cartella <b>public</b> (i file che iniziano con <b>q-</b>).`;
 }).catch(() => {});
 socket.on('quiz', v => {
   quizView = v;
@@ -299,6 +305,9 @@ socket.on('quiz', v => {
   if (v.stage === 'raceResults' && v.lastRace && v.lastRace.fastest) {
     const f = v.lastRace.fastest;
     $('rfast').textContent = `Giro più veloce: ${f.name}, ${R.fmtTime(f.time)}. +10 punti${v.lastRace.final ? '' : ' e un potere alla prima domanda della prossima parte'}.`;
+  } else if (v.stage === 'raceResults' && v.lastRace && v.lastRace.extra) {
+    const w = v.lastRace.results[0];
+    $('rfast').textContent = `Ultimo giro vinto da ${w ? w.name : ''}: ora gira la ruota. Premi Continua.`;
   } else if (v.stage === 'raceResults' && v.lastRace && v.lastRace.tiebreak) {
     const w = v.lastRace.results[0];
     $('rfast').textContent = `Spareggio vinto da ${w ? w.name : ''}. Premi Continua per la classifica finale.`;
@@ -345,7 +354,7 @@ socket.on('fx', f => {
     case 'flag': flashUntil = performance.now() + 2000; setBanner(`${carName(f.id)}: BANDIERA SVEDESE! TUTTI RALLENTANO`, 2000, '#006AA7'); break;
     case 'catch': pushTicker(`${carName(f.id)} ha preso il gelato!`); break;
     case 'trick': pushTicker(`${carName(f.id)} · TRICK!`, '#FF7A00'); break;
-    case 'event': setBanner('⚠ ' + (TR.EVENTS[f.ev] || f.ev), 1800, R.C.ink); break;
+    case 'event': setBanner('Attenzione: ' + (TR.EVENTS[f.ev] || f.ev), 1800, R.C.ink); break;
     case 'finish':
       pushTicker(`${carName(f.id)} · ARRIVATO ${f.rank}° · ${R.fmtTime(f.time)}`, race && race.cars[f.id] ? race.cars[f.id].color : null);
       setBanner(`${carName(f.id)} ${f.rank}°!`, 1600, R.C.blue);

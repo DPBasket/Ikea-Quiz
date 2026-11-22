@@ -58,6 +58,26 @@ Anche lo schermo TV si può ricaricare: con **RIPRENDI LA PARTITA** si torna all
 - **Togliere giocatori**: nella lobby passa col mouse su un giocatore e premi **×**. Il bottone **Togli chi è offline** toglie in un colpo chi ha chiuso il telefono. Si può fare solo tra una gara e l'altra.
 - **Solo gare**: in alto a destra nella lobby scegli *Solo gare*, poi il percorso (anche SPAREGGIO, che così corrono tutti) e premi **Parti**. Dopo la gara, *Continua* riporta alla lobby.
 
+## Gran finale: l'ultimo giro e la ruota
+Se la classifica finale ha un vincitore chiaro (nessun pari merito, nessuno spareggio), dopo lo scontrino parte un voto: **"Un ultimo giro sulla pista 6?"**. Si vota Sì / No dal telefono (25 secondi). Se almeno **la metà** di chi ha votato dice sì, si corre.
+- L'ultimo giro è sulla pista SPAREGGIO, da A a B. **Non vale punti**. La griglia segue la classifica finale: il primo parte in pole.
+- Chi lo vince **gira la ruota** dal telefono (o il presentatore con "Gira per lui"). La ruota gira sullo schermo grande per circa 11 secondi. La probabilità di ogni casella è lo spazio che occupa: più un premio è grande, meno spazio ha. Il Rick roll è uno spicchio sottile, metà di uno normale.
+
+| Casella | Spicchi | Probabilità | Cosa succede |
+|---|---|---|---|
+| Niente | 6 | 36% | la classifica resta com'è |
+| Cioccolatino | 3 | 18% | vince un cioccolatino, classifica uguale |
+| Scambio ↑ | 3 | 18% | scambia posto con chi gli sta sopra (se è già primo, niente) |
+| Sposta 3 | 2 | 12% | 3 mosse da una posizione: può salire lui fino a 3 posti o spostare gli altri |
+| Gira ancora | 1 | 6% | gira di nuovo la ruota |
+| Decidi tu | 1 | 6% | mette lui in ordine tutta la classifica finale |
+| Rick roll | ½ | 3% | parte il Rick roll sul suo telefono (e sulla TV), classifica uguale |
+
+- Con *Sposta 3* e *Decidi tu* il vincitore ordina la classifica sul telefono con le frecce ▲▼ e preme **Conferma**. Intanto la TV mostra le mosse.
+- Alla fine torna lo scontrino con la classifica nuova (i punti restano quelli, conta l'ordine).
+- Sulla TV puoi anche saltare tutto con **Niente ultimo giro**. Con *Annulla la gara* durante l'ultimo giro la classifica resta com'era.
+- Le caselle si cambiano in `quiz-data.js`: `WHEEL` è l'ordine degli spicchi, `WHEEL_W` gli spicchi sottili, `EXTRA.spinMs` quanto gira.
+
 ## Pari merito: la gara di spareggio
 Se alla fine due o più giocatori hanno gli stessi punti, lo scontrino lo segna ("pari") e sullo schermo compare il bottone **Gara di spareggio**.
 - Corrono **solo i giocatori a pari merito**, sul percorso extra **SPAREGGIO**: non è un giro, si parte da A e si arriva a B (circa 2 minuti), con due ponti sopraelevati e un incrocio a raso.

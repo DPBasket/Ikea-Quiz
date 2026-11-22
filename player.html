@@ -34,10 +34,10 @@
 
   #join, #wait, #done { flex-direction:column; gap:14px; padding:max(18px, env(safe-area-inset-top)) 20px 20px; overflow:auto; touch-action:pan-y; max-width:600px; margin:0 auto; }
   #colors { display:grid; grid-template-columns:repeat(10, 1fr); gap:6px; }
-  .sw { aspect-ratio:1; border:0; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(0,0,0,.08); }
-  .sw.sel { box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--ink); }
+  .sw { aspect-ratio:1; border:0; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(0,0,0,.08); } /* taste-skill-ignore: edge so the white swatch shows on white */
+  .sw.sel { box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--ink); } /* taste-skill-ignore: selected state ring */
   .sw:disabled { opacity:.35; position:relative; }
-  .sw:disabled::after { content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#111; font-weight:900; font-size:18px; }
+  .sw:disabled::after { content:'×'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#111; font-weight:900; font-size:18px; }
   details.card > *:not(summary) { margin-top:10px; }
   #err { color:var(--red); font-weight:800; min-height:1.2em; }
   .card { background:var(--stone); padding:16px; display:flex; flex-direction:column; gap:10px; }
@@ -68,7 +68,7 @@
     font-weight:900; font-size:min(2.2vh,9px); letter-spacing:.03em; opacity:.6; touch-action:none; }
   #pu.ready { background:var(--blue); border-color:var(--ink); opacity:1; animation:pulse .8s infinite alternate; }
   #pu canvas { width:60%; height:60%; }
-  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(255,219,0,.9); } to { box-shadow:0 0 0 12px rgba(255,219,0,0); } }
+  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(255,219,0,.9); } to { box-shadow:0 0 0 12px rgba(255,219,0,0); } } /* taste-skill-ignore: item ready, a moving signal not a resting shadow */
   /* phone held upright: same controls, sized for the narrow screen */
   @media (orientation:portrait) {
     #steer { width:46vw; height:13vh; }
@@ -82,7 +82,7 @@
   #overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px;
     background:rgba(233,230,223,.6); text-align:center; padding:20px; pointer-events:none; }
   #overlay.on { display:flex; }
-  #overlay .big { font-size:min(26vh,140px); text-shadow:0 0 0 #fff, 4px 4px 0 #fff; }
+  #overlay .big { font-size:min(26vh,140px); text-shadow:0 0 0 #fff, 4px 4px 0 #fff; } /* taste-skill-ignore: countdown readable over the 3D track */
   #dark { position:absolute; inset:0; background:#000; display:none; color:#333; font-weight:900; font-size:40px; align-items:center; justify-content:center; }
   #dark.on { display:flex; }
   #rotate { position:fixed; inset:0; background:var(--blue); color:var(--yellow); display:none; z-index:50; align-items:center; justify-content:center;
@@ -99,18 +99,21 @@
   #sab .opt.sel { border-color:var(--blue); background:var(--yellow); color:var(--blue); }
   #sab .tg { display:flex; flex-direction:column; gap:6px; overflow:auto; min-height:0; }
   #sab .tg button { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--blue); color:#fff; font-weight:900; font-size:17px; text-align:left; border:0; }
-  #sab .tg button i { width:18px; height:18px; flex:none; box-shadow:0 0 0 2px #fff; }
+  #sab .tg button i { width:18px; height:18px; flex:none; border:2px solid #fff; }
   #sab .tg button span { flex:1; }
   #sab .tg button small { font-size:12px; font-weight:700; color:var(--yellow); }
   #sab .tg button:active { background:var(--yellow); color:var(--blue); }
   #sab .done { margin:0; font-weight:800; font-size:16px; color:var(--ink); }
   body.sab #steer, body.sab #pu, body.sab #gas { display:none; }
+  h1.brand { margin:0; }
+  #join .intro { margin:-4px 0 6px; font-size:18px; line-height:1.4; color:var(--ink); }
 </style>
 </head>
 <body>
 
 <section id="join" class="screen on">
-  <div class="brand">IKEA <span>quiz</span></div>
+  <h1 class="brand">IKEA <span>quiz</span></h1>
+  <p class="intro">Il tuo telefono è il telecomando: rispondi alle domande e guidi il kart. Tutti insieme guardate lo schermo grande.</p>
   <div><label for="code">Codice della stanza</label><input id="code" inputmode="numeric" maxlength="4" autocomplete="off"></div>
   <div><label for="name">Il tuo nome</label><input id="name" maxlength="12" autocomplete="off" placeholder="MARCO"></div>
   <div><label>Cosa tiene in mano il tuo personaggio</label><div id="avatars"></div></div>
@@ -286,7 +289,7 @@ function updateModeUi() {
   $('modeBtn').classList.toggle('sel', !tilt.on); $('modeTilt').classList.toggle('sel', tilt.on);
   $('tiltbox').classList.toggle('on', tilt.on);
   document.body.classList.toggle('tilt', tilt.on && tilt.raw != null);
-  $('tiltstate').textContent = tilt.raw != null ? 'Giroscopio attivo ✓' + (tilt.invert ? ' (invertito)' : '') : (tilt.msg || 'Attivazione…');
+  $('tiltstate').textContent = tilt.raw != null ? 'Giroscopio attivo' + (tilt.invert ? ' (invertito)' : '') : (tilt.msg || 'Attivazione…');
 }
 $('modeBtn').onclick = () => { tilt.on = false; store.set('ikea_mode', 'btn'); updateModeUi(); };
 $('modeTilt').onclick = () => { tilt.on = true; store.set('ikea_mode', 'tilt'); enableTilt(); updateModeUi(); };

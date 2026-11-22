@@ -75,7 +75,8 @@ function createQuiz(ctx) {
         flow: { started: flow.started, step: flow.step, stage: flow.stage, lastRace: flow.lastRace, log: flow.log, finalShown: flow.finalShown, bonus: flow.bonus,
           cur: flow.cur && { ...flow.cur, ready: [...flow.cur.ready] } },
         players: players().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, avatar: p.avatar, score: p.score, history: p.history, powerUses: p.powerUses, noPowerNext: !!p.noPowerNext })),
-        raceMods: flow.raceMods, tb: flow.tb || {}, special: flow.special || null, gridBy: flow.gridBy || null, gridOrder: flow.gridOrder || null
+        raceMods: flow.raceMods, tb: flow.tb || {}, special: flow.special || null, gridBy: flow.gridBy || null, gridOrder: flow.gridOrder || null,
+        finalOverride: flow.finalOverride || null, extraDone: flow.extra && flow.extra.phase === 'over' ? flow.extra : null
       };
       try { fs.writeFileSync(SAVE_FILE, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, 200);
@@ -94,6 +95,7 @@ function createQuiz(ctx) {
       flow.tb = d.tb || {};
       flow.special = d.special || planSpecials();
       flow.gridBy = d.gridBy || null; flow.gridOrder = d.gridOrder || null;
+      flow.finalOverride = d.finalOverride || null; flow.extra = d.extraDone || null;    // an unfinished gran finale starts again from the vote
       Object.assign(flow, { started: true, step: d.flow.step, lastRace: d.flow.lastRace, log: d.flow.log || [], bonus: d.flow.bonus || null });
       const st = stepObj();
       if (st && st.t === 'q') {
@@ -158,6 +160,7 @@ function createQuiz(ctx) {
       flow.finalShown++; broadcast(); save();
       const nextRank = n - flow.finalShown;           // rank revealed next
       if (nextRank >= 1) finalReveal(nextRank > 3 ? 1800 : nextRank === 3 ? 3000 : nextRank === 2 ? 3500 : 5000);
+      else if (extraEligible()) { clearTimeout(timer); timer = setTimeout(() => { if (flow.stage === 'final') openVote(); }, 7000 / FAST); }
     }, delay / FAST);
   }
   function next() {
@@ -171,6 +174,7 @@ function createQuiz(ctx) {
     if (stage === 'powers') return endPowers();
     if (stage === 'reading') return setStage('answering', answerTime());
     if (stage === 'answering') return reveal();
+    if (stage === 'extraVote') return closeVote();
   }
   const answerTime = () => (qData() && qData().type === 'order' ? DATA.TIMES.order : DATA.TIMES.answer);
 
@@ -183,7 +187,14 @@ function createQuiz(ctx) {
       case 'answering': return reveal();
       case 'race': return;                                      // the race ends on its own (or ANNULLA)
       case 'raceWait': return startRaceStep(stepObj());
-      case 'final': clearTimeout(timer); flow.finalShown = players().length; broadcast(); save(); return;   // AVANTI = show all
+      case 'final':                                             // AVANTI = show all, then the vote for the last lap
+        clearTimeout(timer);
+        if ((flow.finalShown || 0) >= players().length && extraEligible()) return openVote();
+        flow.finalShown = players().length; broadcast(); save();
+        if (extraEligible()) timer = setTimeout(() => { if (flow.stage === 'final') openVote(); }, 7000 / FAST);
+        return;
+      case 'extraVote': return closeVote();
+      case 'wheel': return wheelAdvance();
       default: return next();
     }
   }
@@ -198,7 +209,7 @@ function createQuiz(ctx) {
   }
   function reset() {
     clearTimeout(timer);
-    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [], bonus: null, racePts: null, tb: {}, tiebreak: null, tbDone: null });
+    Object.assign(flow, { started: false, step: -1, stage: 'lobby', deadline: 0, cur: null, lastRace: null, log: [], bonus: null, racePts: null, tb: {}, tiebreak: null, tbDone: null, extra: null, finalOverride: null });
     for (const p of players()) { p.score = 0; p.history = []; p.powerUses = {}; p.noPowerNext = false; }
     flow.special = null; flow.gridBy = null; flow.gridOrder = null;
     flow.raceMods = null;
@@ -236,6 +247,8 @@ function createQuiz(ctx) {
     broadcast(); save();
   }
   hooks.getStartingGrid = (list) => {
+    // gran finale: the grid is the final ranking, the winner in pole
+    if (flow.extra && flow.extra.phase === 'race') { const ord = finalOrder().map(p => p.id); return list.slice().sort((a, b) => ord.indexOf(a.id) - ord.indexOf(b.id)); }
     let grid = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0) || Math.random() - 0.5);
     if (flow.gridOrder && !flow.tiebreak && flow.started) {
       const ord = flow.gridOrder.order;
@@ -250,6 +263,7 @@ function createQuiz(ctx) {
   };
   hooks.decorateResults = (results) => {
     if (flow.tiebreak) return tiebreakResults(results);
+    if (flow.extra && flow.extra.phase === 'race') return extraResults(results);
     const r = DATA.RACES[flow.raceIndex] || {}, n = results.length, mul = r.final ? 2 : 1;
     flow.racePts = {};
     // fastest single lap of the race
@@ -269,6 +283,7 @@ function createQuiz(ctx) {
   hooks.onContinue = () => {
     if (!flow.started || (flow.stage !== 'raceResults' && flow.stage !== 'race')) return;
     if (flow.tiebreak) return endTiebreak();
+    if (flow.extra && (flow.extra.phase === 'race' || flow.extra.phase === 'results')) return openWheel();
     next();
   };
   hooks.applyWinnerBonus = () => {};                // race points already given by decorateResults
@@ -279,9 +294,13 @@ function createQuiz(ctx) {
   const TIEBREAK_TRACK = 'spareggio';
   function finalOrder() {
     const tb = flow.tb || {};
-    return players().slice().sort((a, b) => ((b.score || 0) - (a.score || 0)) || ((tb[b.id] || 0) - (tb[a.id] || 0)));
+    const byScore = players().slice().sort((a, b) => ((b.score || 0) - (a.score || 0)) || ((tb[b.id] || 0) - (tb[a.id] || 0)));
+    if (!flow.finalOverride) return byScore;
+    // the wheel changed the ranking: that order wins over the points
+    const ord = flow.finalOverride.filter(id => game.players.has(id));
+    return ord.map(id => game.players.get(id)).concat(byScore.filter(p => !ord.includes(p.id)));
   }
-  const sameSpot = (a, b) => (a.score || 0) === (b.score || 0) && ((flow.tb || {})[a.id] || 0) === ((flow.tb || {})[b.id] || 0);
+  const sameSpot = (a, b) => !flow.finalOverride && (a.score || 0) === (b.score || 0) && ((flow.tb || {})[a.id] || 0) === ((flow.tb || {})[b.id] || 0);
   // groups of players still tied, best position first
   function ties() {
     const list = finalOrder(), out = [];
@@ -320,6 +339,154 @@ function createQuiz(ctx) {
     flow.tbDone = last && last.winner ? { winner: last.winner, names: last.names, rank: last.rank } : null;
     flow.stage = 'final'; flow.finalShown = players().length;
     broadcast(); save();
+  }
+
+  /* ---------- gran finale: vote → last lap on track 6 → the winner spins the wheel ----------
+   * Only when the ranking has a clear winner without a tie-break. The last lap gives no points:
+   * its winner spins the wheel, and the wheel may change the final ranking (see DATA.WHEEL). */
+  const X = DATA.EXTRA;
+  const after = (ms, fn) => setTimeout(fn, ms);                 // ms already scaled (rnd) or divided by FAST
+  const extraEligible = () => flow.stage === 'final' && !flow.extra && !flow.tbDone && !ties().length && players().length >= 2;
+  function openVote() {
+    if (!extraEligible()) return;
+    clearTimeout(timer);
+    flow.extra = { phase: 'vote', votes: {} };
+    setStage('extraVote', X.voteMs / FAST);
+    for (const b of active().filter(p => p.bot)) after(rnd(1500, 6000), () => vote(b, Math.random() < 0.7));
+  }
+  function vote(p, yes) {
+    if (flow.stage !== 'extraVote' || !flow.extra) return;
+    flow.extra.votes[p.id] = !!yes;
+    if (active().every(x => flow.extra.votes[x.id] != null)) return closeVote();
+    broadcast(); save();
+  }
+  const voteCount = () => { const v = Object.values((flow.extra && flow.extra.votes) || {}); return { yes: v.filter(Boolean).length, no: v.filter(x => !x).length }; };
+  function closeVote() {
+    if (flow.stage !== 'extraVote') return;
+    clearTimeout(timer);
+    const c = voteCount();
+    // half or more of those who voted say yes → we race
+    if (c.yes > 0 && c.yes * 2 >= c.yes + c.no) {
+      if (game.phase !== 'lobby') ctx.backToLobby();
+      flow.extra.phase = 'race'; flow.extra.vote = c;
+      const err = ctx.startRace(X.track);
+      if (err) return endExtra('Non si può fare l\'ultimo giro: ' + err);
+      flow.stage = 'race'; flow.deadline = 0; broadcast(); save();
+      return;
+    }
+    endExtra(`Niente ultimo giro (${c.yes} sì, ${c.no} no): la classifica resta questa.`, c);
+  }
+  function extraResults(results) {
+    const w = results[0];
+    flow.racePts = null;
+    flow.lastRace = { extra: true, results: results.map(x => ({ playerId: x.playerId, rank: x.rank, name: x.name })) };
+    flow.extra.phase = 'results';
+    flow.extra.winner = w ? { id: w.playerId, name: w.name } : null;
+    flow.stage = 'raceResults'; save();
+  }
+  function openWheel() {
+    if (game.phase !== 'lobby') ctx.backToLobby();
+    if (!flow.extra || !flow.extra.winner || !game.players.has(flow.extra.winner.id)) return endExtra('Ultimo giro senza vincitore: la classifica resta questa.');
+    flow.extra.phase = 'ready';
+    flow.stage = 'wheel'; flow.deadline = 0;
+    broadcast(); save();
+    const w = game.players.get(flow.extra.winner.id);
+    if (w.bot) after(2500 / FAST, () => spin(w));
+  }
+  function spin(p) {
+    const e = flow.extra;
+    if (flow.stage !== 'wheel' || !e || e.phase !== 'ready' || (p && p.id !== e.winner.id)) return;
+    // the chance of a slice is its width (thin slices are rarer)
+    const ws = DATA.WHEEL.map(k => (DATA.WHEEL_W && DATA.WHEEL_W[k]) || 1);
+    let r = Math.random() * ws.reduce((a, b) => a + b, 0), i = 0;
+    for (; i < ws.length - 1; i++) { r -= ws[i]; if (r < 0) break; }
+    e.seg = i; e.kind = DATA.WHEEL[i]; e.spins = (e.spins || 0) + 1;
+    e.phase = 'spinning'; e.spinUntil = now() + X.spinMs / FAST;
+    broadcast(); save();
+    clearTimeout(timer);
+    timer = setTimeout(applyWheel, X.spinMs / FAST + 400);
+  }
+  function applyWheel() {
+    const e = flow.extra;
+    if (flow.stage !== 'wheel' || !e || e.phase !== 'spinning') return;
+    const order = finalOrder().map(p => p.id), me = e.winner.id, i = order.indexOf(me);
+    e.before = order.slice();
+    if (e.kind === 'GIRA') {                                          // spin again
+      e.phase = 'ready'; e.again = true; e.note = null;
+      broadcast(); save();
+      const w = game.players.get(me);
+      if (w && w.bot) after(2500 / FAST, () => spin(w));
+      return;
+    }
+    e.again = false;
+    if (e.kind === 'RICKROLL') {
+      e.note = `${e.winner.name} viene rick rollato! La classifica resta com'è.`;
+      e.phase = 'done'; broadcast(); save(); return;
+    }
+    if (e.kind === 'SCAMBIO') {
+      if (i > 0) { [order[i - 1], order[i]] = [order[i], order[i - 1]]; e.note = `${e.winner.name} scambia posto con ${game.players.get(order[i]).name}: ora è ${i}°.`; }
+      else e.note = `${e.winner.name} è già primo: non c'è nessuno sopra con cui scambiare.`;
+      flow.finalOverride = order; e.phase = 'done';
+    } else if (e.kind === 'SPOSTA3' || e.kind === 'DECIDI') {
+      e.order = order.slice(); e.phase = 'edit';
+      e.moves = e.kind === 'SPOSTA3' ? X.moves : null;
+      const w = game.players.get(me);
+      if (w && w.bot) after(3000 / FAST, () => { const o = e.order.slice(); const k = o.indexOf(me); if (k > 0) { o.splice(k, 1); o.splice(Math.max(0, k - (e.moves || 99)), 0, me); } setWheelOrder(w, o); confirmWheel(w); });
+    } else {
+      e.note = e.kind === 'CIOCCOLATINO' ? `${e.winner.name} ha vinto un cioccolatino! La classifica resta com'è.` : 'Non succede niente: la classifica resta com\'è.';
+      e.phase = 'done';
+    }
+    broadcast(); save();
+  }
+  // moves = how many swaps of two neighbours turn one order into the other
+  function swapsBetween(a, b) {
+    const pos = new Map(b.map((id, i) => [id, i])), arr = a.map(id => pos.get(id));
+    let n = 0; for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) if (arr[i] > arr[j]) n++;
+    return n;
+  }
+  function setWheelOrder(p, order) {
+    const e = flow.extra;
+    if (flow.stage !== 'wheel' || !e || e.phase !== 'edit' || !p || p.id !== e.winner.id || !Array.isArray(order)) return;
+    const ids = order.map(String).filter(id => e.before.includes(id));
+    if (ids.length !== e.before.length || new Set(ids).size !== ids.length) return;
+    if (e.moves != null && swapsBetween(e.before, ids) > e.moves) return;      // Sposta 3: at most 3 moves
+    e.order = ids; broadcast(); save();
+  }
+  function confirmWheel(p) {
+    const e = flow.extra;
+    if (flow.stage !== 'wheel' || !e || e.phase !== 'edit' || (p && p.id !== e.winner.id)) return;
+    flow.finalOverride = e.order.slice();
+    const changed = e.before.filter((id, i) => e.order[i] !== id).length;
+    e.note = changed ? `${e.winner.name} ha cambiato la classifica finale.` : `${e.winner.name} ha lasciato la classifica com'era.`;
+    e.phase = 'done'; broadcast(); save();
+  }
+  // AVANTI during the wheel: spin for the winner, confirm the edit, then back to the final ranking
+  function wheelAdvance() {
+    const e = flow.extra; if (!e) return;
+    if (e.phase === 'ready') return spin(null);
+    if (e.phase === 'spinning') return applyWheel();
+    if (e.phase === 'edit') return confirmWheel(null);
+    if (e.phase === 'done') return endExtra(e.note);
+  }
+  function endExtra(note, vote) {
+    clearTimeout(timer);
+    if (game.phase !== 'lobby') ctx.backToLobby();
+    const e = flow.extra || {};
+    flow.extra = { phase: 'over', note: note || e.note || '', kind: e.kind || null, winner: e.winner || null, vote: vote || e.vote || null };
+    flow.stage = 'final'; flow.finalShown = players().length; flow.deadline = 0;
+    broadcast(); save();
+  }
+  const wheelSlices = () => DATA.WHEEL.map(k => ({ k, label: DATA.WHEEL_KINDS[k].label, w: (DATA.WHEEL_W && DATA.WHEEL_W[k]) || 1 }));
+  function wheelView(forId) {
+    const e = flow.extra; if (!e) return null;
+    const pub = id => { const p = game.players.get(id); return p ? { id, name: p.name, color: p.color, avatar: p.avatar } : null; };
+    const w = { phase: e.phase, winner: e.winner, slices: wheelSlices(),
+      kinds: DATA.WHEEL_KINDS, note: e.note || null, spins: e.spins || 0, again: !!e.again };
+    if (e.phase === 'spinning' || e.phase === 'edit' || e.phase === 'done') { w.seg = e.seg; w.kind = e.kind; }
+    if (e.phase === 'spinning') { w.spinMs = X.spinMs / FAST; w.spinLeft = Math.max(0, e.spinUntil - now()); }
+    if (e.phase === 'edit') { w.order = e.order.map(pub).filter(Boolean); w.before = e.before; w.moves = e.moves; w.used = e.moves != null ? swapsBetween(e.before, e.order) : null; }
+    if (forId) w.mine = !!(e.winner && e.winner.id === forId);
+    return w;
   }
 
   /* ---------- powers ---------- */
@@ -555,7 +722,7 @@ function createQuiz(ctx) {
   }
   function standings() {
     const pub = p => ({ id: p.id, name: p.name, color: p.color, avatar: p.avatar, bot: p.bot, connected: p.connected });
-    if (flow.stage === 'final' || flow.tiebreak) {
+    if (flow.stage === 'final' || flow.tiebreak || flow.stage === 'extraVote' || flow.stage === 'wheel' || (flow.extra && flow.extra.phase !== 'over')) {
       const sorted = finalOrder(), n = sorted.length;
       let rank = 0;
       return sorted.map((p, i) => {
@@ -578,6 +745,8 @@ function createQuiz(ctx) {
       final: flow.stage === 'final' ? { shown: flow.finalShown || 0, total: players().length,
         ties: (flow.finalShown || 0) >= players().length ? ties() : [], tbDone: flow.tbDone || null } : null,
       tiebreak: flow.tiebreak ? { ids: flow.tiebreak.ids, names: flow.tiebreak.names, rank: flow.tiebreak.rank, track: TIEBREAK_TRACK } : null,
+      extra: flow.extra ? { phase: flow.extra.phase, note: flow.extra.note || null, winner: flow.extra.winner || null, vote: flow.stage === 'extraVote' ? voteCount() : flow.extra.vote || null,
+        voters: flow.stage === 'extraVote' ? active().length : null, track: X.track } : null,
       plan: steps.map(x => x.t === 'race' ? { t: 'race', track: DATA.RACES[x.race].trackId, final: !!DATA.RACES[x.race].final }
                                          : x.t === 'part' ? { t: 'part', n: DATA.PARTS[x.p].n, title: DATA.PARTS[x.p].title } : { t: x.t })
     };
@@ -591,6 +760,9 @@ function createQuiz(ctx) {
     }
     if (flow.lastRace && (flow.stage === 'raceResults' || flow.stage === 'raceSkipped')) v.lastRace = flow.lastRace;
     if (flow.tiebreak) v.race = { track: TIEBREAK_TRACK, tiebreak: true };
+    if (flow.extra && (flow.extra.phase === 'race' || flow.extra.phase === 'results')) v.race = { track: X.track, extra: true };
+    if (flow.stage === 'wheel') v.wheel = wheelView();
+    if (flow.stage === 'extraVote') v.wheel = { phase: 'preview', slices: wheelSlices(), kinds: DATA.WHEEL_KINDS };
     if (gridActive()) v.grid = { by: flow.gridBy.name, byId: flow.gridBy.id, order: gridNow(), set: !!flow.gridOrder };
     if (q) {
       const showQ = flow.stage !== 'powers';
@@ -639,6 +811,8 @@ function createQuiz(ctx) {
     const st = v.standings.find(x => x.id === p.id);
     v.me = { id: p.id, name: p.name, color: p.color, avatar: p.avatar, score: p.score, rank: st && st.rank && !st.hidden ? st.rank : null, tie: !!(st && st.tie) };
     if (flow.stage === 'raceResults' && flow.racePts) v.me.racePts = flow.racePts[p.id];
+    if (flow.stage === 'extraVote' && flow.extra) v.me.vote = flow.extra.votes[p.id] != null ? flow.extra.votes[p.id] : null;
+    if (flow.stage === 'wheel') v.wheel = wheelView(p.id);
     if (flow.cur) {
       v.me.ready = flow.cur.ready.has(p.id);
       v.me.answer = flow.cur.answers[p.id] ? flow.cur.answers[p.id].a : null;
@@ -669,6 +843,11 @@ function createQuiz(ctx) {
     s.on('quiz_next', () => { if (isHost()) advance(); });
     s.on('quiz_tiebreak', () => { if (isHost()) startTiebreak(); });
     s.on('quiz_grid', (d = {}) => { const p = me(); if (p) setGrid(p, d.order); });
+    s.on('quiz_vote', (d = {}) => { const p = me(); if (p) vote(p, !!d.yes); });
+    s.on('quiz_spin', () => { const p = me(); if (p) spin(p); });
+    s.on('quiz_wheel_order', (d = {}) => { const p = me(); if (p) setWheelOrder(p, d.order); });
+    s.on('quiz_wheel_done', () => { const p = me(); if (p) confirmWheel(p); });
+    s.on('quiz_extra_skip', () => { if (isHost() && flow.stage === 'final' && extraEligible()) { flow.extra = null; endExtra('Niente ultimo giro: la classifica resta questa.'); } });
     s.on('quiz_reset', () => { if (isHost()) { if (game.phase !== 'lobby') ctx.backToLobby(); reset(); ctx.broadcastLobby(); } });
     s.on('quiz_avatar', (d = {}) => { const p = me(); if (p && AVATAR_ITEMS.includes(d.avatar)) { p.avatar = d.avatar; ctx.broadcastLobby(); broadcast(); save(); } });
     s.on('quiz_ready', () => { const p = me(); if (p) setReady(p); });
@@ -678,6 +857,7 @@ function createQuiz(ctx) {
 
   // anyone leaving or coming back changes who we wait for
   function onPresence() {
+    if (flow.stage === 'extraVote' && flow.extra && active().length && active().every(x => flow.extra.votes[x.id] != null)) return closeVote();
     if (!flow.cur) return broadcast();
     if (flow.stage === 'powers' && powerers().every(x => flow.cur.powers[x.id])) return endPowers();
     if (flow.stage === 'reading' && active().length && active().every(x => flow.cur.ready.has(x.id))) return setStage('answering', answerTime());
@@ -685,7 +865,7 @@ function createQuiz(ctx) {
     broadcast();
   }
 
-  return { attach, start, advance, reset, restore, ensure, broadcast, onPresence, save, flow, AVATAR_ITEMS, sendTo, playerView, endTiebreak };
+  return { attach, start, advance, reset, restore, ensure, broadcast, onPresence, save, flow, AVATAR_ITEMS, sendTo, playerView, endTiebreak, endExtra };
 }
 
 module.exports = { createQuiz };
