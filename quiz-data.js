@@ -110,6 +110,9 @@ const RACES = [
  * kind: 'obstacle' → si sceglie un avversario  |  'bonus' → vale per te
  * cost: punti che paghi subito  ·  maxUses: quante volte in tutta la partita  ·  weightLow: esce più spesso a chi è indietro
  * weight: quanto spesso esce (1 = normale; i poteri che riempiono lo schermo escono meno)  ·  parts: solo in quelle parti
+ * Gli ostacoli si sommano: se più persone lanciano lo stesso alla stessa vittima, ogni copia in più vale +0,5
+ * (2 lanci = 1,5 volte, 3 lanci = 2 volte: più polpette, scatoloni più lunghi, più faaah di fila).
+ * Sback (ex Gnam gnam) fa eccezione: 1/4, 2/5, 3/6 delle lettere e non di più.
  * special: non estratto a caso (perPart = una volta per parte a una persona; rare = 1-2 volte in tutto il quiz)
  * Gli effetti sul telefono sono in public/quiz-player.js (applyEffects); quelli sui punti in quiz.js (reveal).
  */
@@ -123,9 +126,10 @@ const POWERS = {
   CLASSIFICA: { kind: 'bonus',    label: 'Sbircia la classifica', desc: 'Vedi la classifica di adesso sul tuo telefono.', weight: 1.3 },
   DOPPIO:     { kind: 'bonus',    label: 'Punti ×2',         desc: 'Se rispondi giusto, punti doppi.', weight: 1.3 },
   TOGLI:      { kind: 'bonus',    label: 'Togli una sbagliata', desc: 'Una risposta sbagliata sparisce dal tuo telefono.', needsChoices: 3, weight: 1.3 },
-  FAAAH:      { kind: 'obstacle', label: 'Faaah',            desc: 'Al primo tocco su una risposta: suono, gattino, e la risposta non vale. Poi riprova.', weight: 0.45 },
+  FAAAH:      { kind: 'obstacle', label: 'Faaah',            desc: 'I suoi primi due tocchi su una risposta: suono, gattino, e non valgono. Poi riprova.', weight: 0.45 },
   POLPETTE:   { kind: 'obstacle', label: 'Polpette',         desc: 'Polpette IKEA che vanno e vengono su tutto il suo schermo.', weight: 0.4 },
-  SCATOLE:    { kind: 'obstacle', label: 'Scatoloni',        desc: 'Scatoloni gli coprono le risposte per 4 secondi.', weight: 0.5 },
+  SCATOLE:    { kind: 'obstacle', label: 'Scatoloni',        desc: 'Scatoloni gli cadono sulle risposte e le coprono per 8 secondi.', weight: 0.5 },
+  GNAM:       { kind: 'obstacle', label: 'Sback',            desc: 'Sbrodolino che fa uno snack: gli mangia un quarto delle lettere delle risposte.', needsChoices: 2, weight: 0.7 },
   // speciali: non escono a caso, il quiz li assegna a una sola persona in momenti precisi
   RICKROLL:   { kind: 'obstacle', label: 'Rick roll',        desc: 'Uno solo per parte. Gli parte un video e finché dura non può fare nulla. Se ti esce e non lo usi, al prossimo turno niente poteri.', special: 'perPart' },
   VIAGIUSTA:  { kind: 'obstacle', label: 'Via la giusta',    desc: 'Rarissimo: sul suo telefono sparisce la risposta giusta, sbaglia per forza.', special: 'rare', needsChoices: 2 }

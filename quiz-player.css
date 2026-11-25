@@ -98,7 +98,7 @@
 .blob { position:absolute; z-index:21; width:120px; height:100px; background:#6BBF3A; border-radius:48% 52% 45% 55%; display:flex; align-items:center;
   justify-content:center; color:#1F4D0B; font-weight:800; font-size:13px; text-align:center; touch-action:manipulation; }
 .cbox { position:absolute; z-index:21; background:#C49A62; display:flex; align-items:center; justify-content:center; font-weight:800; color:#5D4037; font-size:14px; }
-.cbox::after { content:""; position:absolute; left:46%; top:0; bottom:0; width:8%; background:#A07A45; }
+.cbox::after { content:""; position:absolute; left:80%; top:0; bottom:0; width:8%; background:#A07A45; }
 .fxmsg { position:absolute; left:12px; right:12px; top:12px; z-index:22; background:#C4161C; color:#fff; font-weight:700; text-align:center; padding:10px; animation:drop .3s cubic-bezier(.22,1,.36,1) both; }
 .fxmsg.good { background:var(--blue); }
 @keyframes drop { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
@@ -139,3 +139,13 @@
 /* gran finale */
 .act.xspin { font-size:30px; padding:22px; }
 .glist .oitem.mine { background:var(--yellow); }
+
+/* Gnam gnam: two bites taken out of each answer tile (circles in the colour of the page) */
+.pa .bite { position:absolute; right:-14px; top:-14px; width:38px; height:38px; border-radius:50%; background:#fff; pointer-events:none; }
+.pa .bite.b2 { right:12px; top:-20px; width:30px; height:30px; }
+.pa:has(.bite) { overflow:hidden; }
+
+/* Scatoloni: they drop from above and land with a little bounce */
+.cbox.fall { animation:boxFall .7s cubic-bezier(.3,1.4,.5,1) var(--dl, 0s) both; }
+@keyframes boxFall { from { transform:translateY(-110vh) rotate(-6deg); } to { transform:none; } }
+@media (prefers-reduced-motion: reduce) { .cbox.fall { animation:none; } }

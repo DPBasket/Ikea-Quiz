@@ -1,0 +1,386 @@
+/* ==========================================================================
+   IKEA QUIZ & RACE · TV theme  ("Katalog & Monteringsanvisning")
+   Loaded after quiz-host.css and the inline styles of host.html: presentation only.
+   Grid: 12 columns on the 16:9 frame (--u = 1% of it). Type: Plus Jakarta Sans for words,
+   Space Mono for every number (codes, seconds, points, article numbers).
+   Every interactive thing is a piece of card with a 2px black edge and a hard offset shadow,
+   it lifts towards the pointer and presses flat when clicked.
+   ========================================================================== */
+:root {
+  --blue:#0058AB; --blue-2:#004C94; --blue-3:#003F7D;
+  --yellow:#FFDA1A; --yellow-2:#F2CC00;
+  --ink:#111111; --ink-2:#232323;
+  --white:#FFFFFF; --stone:#F5F5F5; --stone-2:#E9E9E9; --mute:#5C5C5C;
+  --red:#D81E05;
+  --sans:"Plus Jakarta Sans", "Noto Sans", system-ui, sans-serif;
+  --mono:"Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ease:cubic-bezier(.16, 1, .3, 1);          /* long settle */
+  --snap:cubic-bezier(.34, 1.56, .64, 1);      /* small overshoot, for things that click into place */
+  --cut:cubic-bezier(.77, 0, .18, 1);          /* curtain */
+  --line:2px solid var(--ink);
+  --hard:calc(var(--u, 1vw) * .45);
+  /* line drawings from the assembly booklet */
+  --i-allen:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 8v34a8 8 0 0 0 8 8h30'/%3E%3Cpath d='M20 8v34a2 2 0 0 0 2 2h30'/%3E%3Cpath d='M14 8h6M52 44v6'/%3E%3C/svg%3E");
+  --i-pencil:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' stroke='%23111' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M44 6l14 14-30 30-14-14z' fill='%23FFDA1A'/%3E%3Cpath d='M14 36l14 14-18 4z' fill='%23fff'/%3E%3Cpath d='M10 54l2-6 4 4z' fill='%23111'/%3E%3Cpath d='M38 12l14 14' fill='none'/%3E%3C/svg%3E");
+  --i-pack:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23111' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M6 30l26-14 26 14-26 14z' fill='%23E3CBA0'/%3E%3Cpath d='M6 30v8l26 14 26-14v-8' fill='%23C9AD7E'/%3E%3Cpath d='M32 44v8'/%3E%3Cpath d='M19 23l26 14' stroke-dasharray='3 3'/%3E%3C/svg%3E");
+  --i-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%23111' stroke-width='3'/%3E%3Cpath d='M11 20.5l6 6 12-13' fill='none' stroke='%23111' stroke-width='4' stroke-linecap='square'/%3E%3C/svg%3E");
+  --i-cross:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M10 10l20 20M30 10L10 30' stroke='%23111' stroke-width='4.5' stroke-linecap='square'/%3E%3C/svg%3E");
+  --i-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='square'%3E%3Cpath d='M4 12h14M12 5l7 7-7 7'/%3E%3C/svg%3E");
+}
+
+html, body { font-family:var(--sans); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+body { background:var(--blue); }
+::selection { background:var(--yellow); color:var(--ink); }
+
+/* ---------- blueprint ground: the thin technical lines of the booklet, on every blue field ---------- */
+#lobby, #quiz.f-blue, #quiz.f-ink {
+  background-image:
+    linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+  background-size:calc(var(--u) * 4) calc(var(--u) * 4);
+  background-position:calc(var(--u) * -.5) calc(var(--u) * -.5);
+}
+#quiz.f-white { background-color:var(--white);
+  background-image:linear-gradient(rgba(17,17,17,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.04) 1px, transparent 1px);
+  background-size:calc(var(--u) * 4) calc(var(--u) * 4); }
+#quiz.f-yellow { background-color:var(--yellow); color:var(--ink);
+  background-image:linear-gradient(rgba(17,17,17,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.06) 1px, transparent 1px);
+  background-size:calc(var(--u) * 4) calc(var(--u) * 4); }
+#quiz.f-blue { background-color:var(--blue); }
+#quiz.f-ink { background-color:var(--ink); }
+
+/* ---------- type ---------- */
+#quiz { font-family:var(--sans); }
+.mega, #lobby h1, #rside h1, .partn, .pcat h2, .receipt h2, .wm, .fnote, .route .nm b, .tag, .xres {
+  text-transform:uppercase; letter-spacing:-.045em; font-family:var(--sans); }
+.mega { font-weight:800; font-size:calc(var(--u) * 5.8); line-height:.9; max-width:20ch; }
+.mega span { font-weight:400 !important; }
+.lede { font-size:calc(var(--u) * 1.85); line-height:1.38; letter-spacing:-.01em; }
+.qline { font-weight:800; letter-spacing:-.025em; }
+.tnum, .codebox .code, .receipt .sc, .receipt .rk, .receipt .sum, .bigrank, .tallyv b, .rrow .tm, .rrow .rk, .rrow .laps,
+.podium .pl span, .podium .cube, .xorder .rk, #url, .chip figcaption, .gain span {
+  font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+
+/* ---------- header: wordmark tag, where we are, the mini route, the seconds ---------- */
+#quiz .qtop { align-items:center; padding:calc(var(--u) * 1.3) calc(var(--u) * 3) calc(var(--u) * 1.1); position:relative; }
+#quiz .qtop::after { content:""; position:absolute; left:calc(var(--u) * 3); right:calc(var(--u) * 3); bottom:0; height:1px; background:currentColor; opacity:.22; }
+#quiz .wm { font-weight:800; font-size:calc(var(--u) * 1.5); letter-spacing:-.03em; background:var(--blue); color:var(--yellow);
+  padding:.28em .55em .22em; border:var(--line); line-height:1; }
+#quiz.f-blue .wm { background:var(--yellow); color:var(--blue); }
+#quiz .wm span { color:#fff; font-weight:500; }
+#quiz.f-blue .wm span { color:var(--ink); }
+#quiz .where { font-family:var(--mono); font-weight:400; font-size:calc(var(--u) * 1.15); text-transform:uppercase; letter-spacing:.02em; opacity:.8; }
+#quiz .tnum { font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * 2.2); background:var(--ink); color:var(--yellow);
+  padding:.12em .45em; min-width:4.2ch; text-align:right; line-height:1.1; }
+#quiz.f-ink .tnum { background:var(--yellow); color:var(--ink); }
+
+/* timer: a yellow bar running out across a blue band, with the ruler ticks of a tape measure */
+#quiz .tbar { height:calc(var(--u) * 1.1); background:var(--blue) !important; border-top:var(--line); border-bottom:var(--line); position:relative; }
+#quiz .tbar::after { content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(90deg, rgba(17,17,17,.55) 0 1px, transparent 1px calc(var(--u) * 2)); mask:linear-gradient(#000 0 45%, transparent 45%); -webkit-mask:linear-gradient(#000 0 45%, transparent 45%); }
+#quiz .tbar i { background:var(--yellow) !important; transition:transform .1s linear, background .3s; }
+#quiz .tbar i.low { background:var(--red) !important; animation:tick .5s steps(2) infinite; }
+#quiz.f-blue .tbar { background:var(--blue-3) !important; }
+@keyframes tick { 50% { filter:brightness(1.25); } }
+
+/* footer */
+#quiz .qfoot { position:relative; }
+#quiz .qfoot::before { content:""; position:absolute; left:calc(var(--u) * 3); right:calc(var(--u) * 3); top:0; height:1px; background:currentColor; opacity:.18; }
+#quiz.f-white .qfoot { background:transparent; }
+#quiz .fnote { font-weight:800; font-size:calc(var(--u) * 1.15); letter-spacing:-.01em; line-height:1.25; }
+
+/* ---------- tactile buttons: card with a black edge, lifts, presses flat; magnetic (ikea-ui.js sets --mx/--my) ---------- */
+#quiz .go, .btn, #hmenu > button, .modebar button {
+  --mx:0px; --my:0px; --lift:0px;
+  border:var(--line) !important; border-radius:0; position:relative;
+  box-shadow:var(--hard) var(--hard) 0 var(--ink);
+  transform:translate(calc(var(--mx) - var(--lift)), calc(var(--my) - var(--lift)));
+  transition:transform .35s var(--ease), box-shadow .35s var(--ease), background-color .18s, color .18s;
+  font-family:var(--sans); font-weight:800; letter-spacing:-.02em; text-transform:uppercase; }
+#quiz .go { font-size:calc(var(--u) * 1.45); padding:.85em 1.4em .8em; display:inline-flex; align-items:center; gap:.7em; }
+#quiz .go::after { content:""; width:1em; height:1em; background:currentColor; flex:none;
+  -webkit-mask:var(--i-arrow) center / contain no-repeat; mask:var(--i-arrow) center / contain no-repeat; transition:transform .35s var(--snap); }
+#quiz .go.quiet::after { display:none; }
+#quiz .go:hover, .btn:hover:not(:disabled) { --lift:3px; box-shadow:calc(var(--hard) + 3px) calc(var(--hard) + 3px) 0 var(--ink); }
+#quiz .go:hover::after { transform:translateX(.25em); }
+#quiz .go:active, .btn:active:not(:disabled) { --lift:calc(var(--hard) * -1); box-shadow:0 0 0 var(--ink); transition-duration:.08s; }
+#quiz .go { background:var(--yellow); color:var(--ink); }
+#quiz .go:hover { background:var(--blue); color:var(--yellow); }
+#quiz.f-blue .go:hover { background:var(--white); color:var(--blue); }
+#quiz.f-yellow .go { background:var(--blue); color:var(--white); }
+#quiz.f-yellow .go:hover { background:var(--ink); color:var(--yellow); }
+#quiz .go.quiet { background:var(--white); color:var(--ink); }
+#quiz .go.quiet:hover { background:var(--yellow); color:var(--ink); }
+#quiz.f-white .go.quiet { background:var(--stone); }
+#quiz.f-blue .go, #quiz.f-ink .go { box-shadow:var(--hard) var(--hard) 0 var(--ink); }
+#quiz.f-ink .go.quiet { box-shadow:var(--hard) var(--hard) 0 var(--yellow); }
+#quiz .go:focus-visible, .btn:focus-visible { outline:3px solid var(--yellow); outline-offset:5px; }
+#quiz.f-yellow .go:focus-visible, #quiz.f-white .go:focus-visible { outline-color:var(--blue); }
+
+/* ---------- players: little shelf labels with a hole for the hook ---------- */
+.who { gap:calc(var(--u) * .7); }
+.chip { width:calc(var(--u) * 5); }
+.chip img { width:calc(var(--u) * 3.8); height:calc(var(--u) * 3.8); transition:transform .45s var(--snap); }
+.chip figcaption { margin-top:2px; background:var(--white); color:var(--ink); border:1.5px solid var(--ink); font-size:calc(var(--u) * .78); font-weight:700;
+  padding:.1em .3em; text-transform:uppercase; }
+.chip.wait { opacity:.4; filter:grayscale(1); }
+.chip.done { transform:translateY(calc(var(--u) * -.7)); }
+.chip.done img { transform:rotate(-6deg) scale(1.06); }
+.chip.done figcaption { background:var(--yellow); }
+.chip.done::before { content:""; position:absolute; width:calc(var(--u) * 1.5); height:calc(var(--u) * 1.5); left:calc(var(--u) * 3.4); top:calc(var(--u) * -.5);
+  background:var(--i-check) center / contain no-repeat; animation:stamp .45s var(--snap) both; z-index:1; }
+.chip { position:relative; }
+
+/* ---------- price tags: questions, the right answer, the word ---------- */
+/* a tag: white or yellow card, 2px black edge, square corners, a punched hole, article number in mono */
+.qline:not(.small):not(.muted) { position:relative; background:var(--white); color:var(--ink); border:var(--line); padding:calc(var(--u) * 2) calc(var(--u) * 3) calc(var(--u) * 2) calc(var(--u) * 4.6);
+  box-shadow:calc(var(--u) * .7) calc(var(--u) * .7) 0 var(--yellow), calc(var(--u) * .7) calc(var(--u) * .7) 0 2px var(--ink); text-align:left; font-size:calc(var(--u) * 3); max-width:38ch; text-wrap:pretty; }
+.qline:not(.small):not(.muted)::before { content:""; position:absolute; left:calc(var(--u) * 1.6); top:50%; width:calc(var(--u) * 1.3); height:calc(var(--u) * 1.3);
+  margin-top:calc(var(--u) * -.65); border-radius:50%; border:var(--line); background:var(--stone); }
+.qline:not(.small):not(.muted)::after { content:"DOMANDA · ART. 703.042.18"; position:absolute; right:-2px; top:calc(var(--u) * -1.9);
+  font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * .95); letter-spacing:.04em; background:var(--ink); color:var(--yellow); padding:.25em .6em; }
+.qrow .qline { max-width:30ch; }
+.qline.small { font-size:calc(var(--u) * 2); text-transform:none; }
+#quiz .qbody.ask { gap:calc(var(--u) * 3.2); }
+
+/* the word to explain: a big yellow price tag */
+.tag { font-weight:800; font-size:calc(var(--u) * 9); letter-spacing:-.05em; background:var(--yellow); color:var(--ink); border:3px solid var(--ink);
+  padding:.14em .4em .1em; box-shadow:calc(var(--u) * .9) calc(var(--u) * .9) 0 var(--ink); position:relative; }
+.tag::after { content:".–"; font-family:var(--sans); font-size:.42em; vertical-align:super; margin-left:.05em; }
+.rcol .tag { font-size:calc(var(--u) * 5.4); }
+
+/* answers: shelf tags with a yellow letter block */
+.answers { gap:calc(var(--u) * 1.2); counter-reset:ans; }
+.ans { counter-increment:ans; background:var(--white); border:var(--line); position:relative; font-family:var(--sans); letter-spacing:-.015em;
+  box-shadow:calc(var(--u) * .4) calc(var(--u) * .4) 0 var(--ink); transition:opacity .45s var(--ease), transform .5s var(--ease), background-color .3s, box-shadow .5s var(--ease); }
+#quiz.f-white .ans { background:var(--white); }
+.ans .l { width:1.9em; height:1.9em; background:var(--yellow); color:var(--ink); border:var(--line); font-weight:800; font-size:.82em; }
+.ans::after { content:"0" counter(ans) "/" ; position:absolute; right:calc(var(--u) * .7); top:calc(var(--u) * .35); font-family:var(--mono); font-size:calc(var(--u) * .78);
+  letter-spacing:.04em; opacity:.45; font-weight:700; }
+.answers.n2 .ans::after { display:none; }
+.answers.n2 .ans:first-child { background:var(--white); }
+.answers.n2 .ans:last-child { background:var(--stone); }
+/* reveal: the right one becomes a yellow tag with a check stamp; the others fold away with a cross */
+.ans.ok { background:var(--yellow) !important; transform:translate(calc(var(--u) * -.25), calc(var(--u) * -.25)) scale(1.02);
+  box-shadow:calc(var(--u) * .8) calc(var(--u) * .8) 0 var(--ink); z-index:1; animation:okPop .6s var(--snap) both; }
+.ans.ok mark { background:none !important; animation:none !important; }
+.ans.ok .l { background:var(--ink); color:var(--yellow); border-color:var(--ink); }
+.ans.ok::before { content:""; position:absolute; right:calc(var(--u) * -1.2); top:calc(var(--u) * -1.2); width:calc(var(--u) * 3.4); height:calc(var(--u) * 3.4);
+  background:var(--i-check) center / contain no-repeat; animation:stamp .55s .25s var(--snap) both; }
+.ans.ok::after { content:"GIUSTA"; opacity:1; background:var(--ink); color:var(--yellow); padding:.15em .45em; top:auto; bottom:calc(var(--u) * -1); right:calc(var(--u) * 2.4); }
+.answers.n2 .ans.ok::after { display:block; }
+.ans.no { opacity:.32; box-shadow:0 0 0 var(--ink); transform:translate(calc(var(--u) * .2), calc(var(--u) * .2)); animation:nope .45s var(--ease) both; }
+.ans.no .t { text-decoration:line-through; text-decoration-thickness:.09em; }
+.ans.no .l { background:var(--white); }
+@keyframes okPop { 0% { transform:none; } 60% { transform:translate(calc(var(--u) * -.35), calc(var(--u) * -.35)) scale(1.045); } 100% { transform:translate(calc(var(--u) * -.25), calc(var(--u) * -.25)) scale(1.02); } }
+@keyframes stamp { 0% { opacity:0; transform:scale(2.2) rotate(-25deg); } 100% { opacity:1; transform:none; } }
+@keyframes nope { 0%, 100% { margin-left:0; } 20% { margin-left:-6px; } 40% { margin-left:6px; } 60% { margin-left:-3px; } 80% { margin-left:3px; } }
+
+/* who got it: small tags, the right ones yellow with a check */
+.gain { border:var(--line); background:var(--white); color:var(--ink); padding:.2em .7em .2em .2em; }
+.gain.ok { background:var(--yellow); }
+.gain.ok span::before { content:"✓ "; font-weight:700; }
+#quiz.f-white .gain:not(.ok) { background:var(--stone); }
+
+/* the photo: a catalogue plate with a thin frame and a figure number */
+.photo { border:var(--line); position:relative; background:var(--white) !important; padding:calc(var(--u) * .9) !important; box-shadow:calc(var(--u) * .5) calc(var(--u) * .5) 0 var(--ink); }
+.photo::after { content:"FIG. 1"; position:absolute; left:-2px; bottom:calc(var(--u) * -2.1); font-family:var(--mono); font-size:calc(var(--u) * .9); font-weight:700; letter-spacing:.06em; }
+
+/* logos question */
+.logos li { border:var(--line); background:var(--white); box-shadow:calc(var(--u) * .35) calc(var(--u) * .35) 0 var(--ink); }
+.logos.done b { border-top:var(--line); margin:.4em calc(var(--u) * -.9) calc(var(--u) * -.9); padding:.2em; text-transform:uppercase; letter-spacing:-.03em; }
+
+/* attacks: black strips like warehouse labels */
+.attacks li { border:var(--line); background:var(--ink); font-weight:700; }
+.attacks li b { text-transform:uppercase; letter-spacing:-.02em; }
+
+/* ---------- welcome ---------- */
+.welcome .mega { font-size:calc(var(--u) * 7); line-height:.84; letter-spacing:-.06em; }
+.welcome .mega span { display:block; color:var(--yellow); font-weight:800 !important; font-size:.62em; letter-spacing:-.04em; margin-top:.12em; }
+.welcome .lede { max-width:40ch; }
+.crowd figure { font-family:var(--sans); text-transform:uppercase; font-size:calc(var(--u) * 1); letter-spacing:-.01em; }
+.crowd img { transition:transform .5s var(--snap); }
+.crowd figure:nth-child(odd) img { transform:rotate(-3deg); }
+.crowd figure:nth-child(even) img { transform:rotate(2deg); }
+.crowd figcaption { background:var(--white); color:var(--ink); border:1.5px solid var(--ink); padding:.05em .35em; margin-top:2px; display:inline-block; }
+
+/* ---------- part intro: the assembly booklet with circled step numbers ---------- */
+.booklet { grid-template-columns:5fr 7fr; gap:calc(var(--u) * 4); }
+.booklet .cover { position:relative; padding-bottom:calc(var(--u) * 12); }
+.booklet .cover::after { content:""; position:absolute; left:0; bottom:0; width:calc(var(--u) * 26); height:calc(var(--u) * 10);
+  background:var(--i-pack) left center / contain no-repeat, var(--i-allen) calc(var(--u) * 12) 70% / calc(var(--u) * 6) no-repeat, var(--i-pencil) calc(var(--u) * 19) 30% / calc(var(--u) * 5.5) no-repeat; }
+.booklet .mega { font-size:calc(var(--u) * 7); color:var(--ink); }
+.partn { display:inline-block; font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * 1.3); letter-spacing:.04em; background:var(--ink); color:var(--yellow);
+  padding:.3em .7em; }
+#quiz.f-blue .partn, #quiz.f-ink .partn { background:var(--yellow); color:var(--ink); }
+.steps { counter-reset:step; border:var(--line); padding:calc(var(--u) * 2.4) calc(var(--u) * 2.6); gap:calc(var(--u) * 1.6);
+  box-shadow:calc(var(--u) * .9) calc(var(--u) * .9) 0 var(--ink); position:relative;
+  background:var(--white) linear-gradient(90deg, transparent calc(var(--u) * 4.9), rgba(17,17,17,.12) calc(var(--u) * 4.9), rgba(17,17,17,.12) calc(var(--u) * 4.9 + 1px), transparent calc(var(--u) * 4.9 + 1px)); }
+.steps::before { content:"MONTERINGSANVISNING · ISTRUZIONI DI MONTAGGIO"; position:absolute; left:-2px; top:calc(var(--u) * -1.9); font-family:var(--mono); font-weight:700;
+  font-size:calc(var(--u) * .9); letter-spacing:.05em; background:var(--ink); color:var(--white); padding:.25em .7em; }
+.steps::after { content:""; position:absolute; right:calc(var(--u) * 1.4); bottom:calc(var(--u) * 1.2); width:calc(var(--u) * 4.5); height:calc(var(--u) * 4.5);
+  background:var(--i-allen) center / contain no-repeat; opacity:.9; transform:rotate(12deg); }
+.steps li { counter-increment:step; position:relative; padding-left:calc(var(--u) * 4.3); font-weight:600; font-size:calc(var(--u) * 1.6); max-width:42ch; }
+.steps li::before { content:counter(step); position:absolute; left:0; top:-.1em; width:calc(var(--u) * 2.7); height:calc(var(--u) * 2.7); border-radius:50%;
+  border:var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * 1.3); background:var(--white); }
+.steps li:last-child { color:var(--ink); padding-right:calc(var(--u) * 5); }
+.steps li:last-child::before { background:var(--yellow); }
+
+/* ---------- powers: a catalogue spread ---------- */
+.powers { gap:calc(var(--u) * 2.4); }
+.powers .mega { font-size:calc(var(--u) * 3); color:var(--yellow); max-width:none; line-height:1; }
+.pcat { gap:calc(var(--u) * 2); }
+.pcat section { border:2px solid rgba(255,255,255,.85); padding:calc(var(--u) * 1.1) calc(var(--u) * 1.3) calc(var(--u) * .8); position:relative; }
+.pcat h2 { font-size:calc(var(--u) * 1.3); display:inline-block; background:var(--white); color:var(--ink); padding:.2em .55em; margin:calc(var(--u) * -2.1) 0 calc(var(--u) * .5); }
+.pcat ul { gap:calc(var(--u) * .45); }
+.pcat li span { font-size:calc(var(--u) * 1); line-height:1.22; }
+.pcat li { padding-bottom:calc(var(--u) * .4); border-bottom:1px dashed rgba(255,255,255,.25); }
+.pcat li:last-child { border-bottom:0; }
+.pcat li b { text-transform:uppercase; letter-spacing:-.03em; font-size:calc(var(--u) * 1.25); }
+.pcat .rare { background:var(--yellow); color:var(--ink); border-color:var(--ink); }
+.pcat .rare h2 { background:var(--ink); color:var(--yellow); }
+.pcat .rare b { color:var(--ink) !important; }
+.pcat .rare li { border-bottom-color:rgba(17,17,17,.25); }
+.pcat .rare span { opacity:1; }
+
+/* ---------- standings + final: receipt, leader with the yellow "1° posto / novità" tag ---------- */
+.leader:not(.spot)::before { content:"1° POSTO · NOVITÀ"; order:-1; font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * 1.4); letter-spacing:.02em;
+  background:var(--yellow); color:var(--ink); border:var(--line); padding:.3em .8em; box-shadow:calc(var(--u) * .4) calc(var(--u) * .4) 0 var(--ink);
+  transform:rotate(-3deg); animation:stamp .6s .35s var(--snap) both; }
+.leader img { transform:rotate(-2deg); }
+.leader .mega { font-size:calc(var(--u) * 5.2); }
+.bigrank { font-family:var(--mono); font-weight:700; letter-spacing:-.06em; }
+.receipt { border:var(--line); box-shadow:calc(var(--u) * .9) calc(var(--u) * .9) 0 var(--ink); position:relative; padding-bottom:calc(var(--u) * 2.2);
+  -webkit-mask:radial-gradient(circle at 50% 100%, transparent calc(var(--u) * .45), #000 calc(var(--u) * .5)) 0 100% / calc(var(--u) * 1.4) 100% repeat-x;
+          mask:radial-gradient(circle at 50% 100%, transparent calc(var(--u) * .45), #000 calc(var(--u) * .5)) 0 100% / calc(var(--u) * 1.4) 100% repeat-x; }
+.receipt h2 { font-family:var(--mono); font-weight:700; letter-spacing:.02em; font-size:calc(var(--u) * 1.1); border-bottom:1px dashed var(--ink); padding-bottom:calc(var(--u) * .7); }
+.receipt li { border-bottom:1px dotted rgba(17,17,17,.25); font-size:calc(var(--u) * 1.4); }
+.receipt li .nm { text-transform:uppercase; letter-spacing:-.02em; font-weight:800; }
+.receipt li .sc { font-weight:700; }
+.receipt li .sc::after { content:".–"; font-family:var(--sans); }
+.receipt li.hid .sc::after { content:""; }
+.receipt li.top { background:var(--yellow); margin:0 calc(var(--u) * -.6); padding-left:calc(var(--u) * .6); padding-right:calc(var(--u) * .6); border:var(--line); }
+.receipt li.top .nm, .receipt li.top .sc { background:none; }
+.receipt li.top .nm::after { content:"1° POSTO"; font-family:var(--mono); font-size:.6em; font-weight:700; background:var(--ink); color:var(--yellow); padding:.1em .4em; margin-left:.5em; vertical-align:.2em; letter-spacing:0; }
+.receipt .sum { border-top:2px dashed var(--ink); font-weight:700; }
+.receipt .tack { font-family:var(--sans); text-transform:uppercase; letter-spacing:-.05em; font-size:calc(var(--u) * 2.6); }
+
+/* podium: KALLAX cubes, names on shelf tags */
+.podium .pl b { text-transform:uppercase; letter-spacing:-.03em; }
+.podium .pl span { border:var(--line); background:var(--yellow); color:var(--ink); }
+.podium .cube { border:var(--line); font-weight:700; }
+.podium .pl.r1::before { content:"1° POSTO"; font-family:var(--mono); font-weight:700; font-size:calc(var(--u) * 1.2); background:var(--ink); color:var(--yellow); padding:.2em .6em;
+  animation:stamp .6s 1.4s var(--snap) both; }
+
+/* ---------- gran finale ---------- */
+.tallyv div { border:var(--line); box-shadow:calc(var(--u) * .4) calc(var(--u) * .4) 0 var(--ink); }
+.tallyv span { text-transform:uppercase; }
+.xside .xres { border:3px solid var(--ink); box-shadow:calc(var(--u) * .6) calc(var(--u) * .6) 0 var(--ink); }
+.xav { transform:rotate(-3deg); }
+.xorder li { border:1.5px solid rgba(255,255,255,.4); }
+.xorder li.me { border-color:var(--ink); }
+
+/* ---------- route ---------- */
+.route .nm b { letter-spacing:-.035em; }
+.route .nm small { font-family:var(--mono); font-size:calc(var(--u) * .95); text-transform:uppercase; letter-spacing:.02em; }
+.route em.here { font-family:var(--mono); text-transform:uppercase; font-weight:700; border:1.5px solid var(--ink); }
+#quiz .mini { border:1.5px solid currentColor; background:transparent !important; }
+
+/* ---------- cinematic change of scene: a yellow then a blue panel sweep across, the new screen is under them ---------- */
+#quiz::before, #quiz::after { content:""; position:absolute; inset:0; z-index:40; pointer-events:none; transform:scaleX(0); }
+#quiz::before { background:var(--yellow); }
+#quiz::after { background:var(--blue); }
+#quiz.enter::after { animation:wipe .78s var(--cut) both; }
+#quiz.enter::before { animation:wipe .9s .06s var(--cut) both; }
+@keyframes wipe {
+  0% { transform:scaleX(1); transform-origin:right center; }
+  100% { transform:scaleX(0); transform-origin:right center; }
+}
+#quiz.f-blue.enter::after { background:var(--ink); }
+#quiz.enter .qbody > *, #quiz.enter .qbody > * > * { animation-name:qRise2; animation-duration:.8s; animation-timing-function:var(--ease); }
+#quiz.enter .qbody > * { animation-delay:.18s; }
+@keyframes qRise2 { from { opacity:0; transform:translateY(calc(var(--u) * 3)); clip-path:inset(0 0 100% 0); } to { opacity:1; transform:none; clip-path:inset(-60% -60% -60% -60%); } }
+#quiz.enter .mega { animation:titleIn .9s .2s var(--ease) both !important; }
+@keyframes titleIn { from { opacity:0; transform:translateY(.35em) skewY(3deg); letter-spacing:.02em; } to { opacity:1; transform:none; } }
+
+/* ==========================================================================
+   LOBBY (inline styles of host.html, re-dressed)
+   ========================================================================== */
+#lobby { background-color:var(--blue); gap:calc(var(--u) * 3); }
+#lobby h1 { font-size:calc(var(--u) * 5.2); line-height:.86; letter-spacing:-.06em; }
+#lobby h1 span { display:block; color:var(--yellow); font-weight:800; }
+.codebox { font-family:var(--mono); font-weight:400; text-transform:uppercase; font-size:calc(var(--u) * 1.05); letter-spacing:.02em; line-height:1.4; }
+.codebox .code { display:inline-block; margin-top:calc(var(--u) * .8); background:var(--yellow); color:var(--ink); border:3px solid var(--ink); font-family:var(--mono); font-weight:700;
+  font-size:calc(var(--u) * 6); letter-spacing:.02em; padding:.06em .3em 0; box-shadow:calc(var(--u) * .7) calc(var(--u) * .7) 0 var(--ink); position:relative; }
+.codebox .code::after { content:".–"; font-family:var(--sans); font-weight:800; font-size:.4em; vertical-align:super; }
+#qr { width:min(100%, calc(100vh - var(--u) * 33)); border:var(--line); box-shadow:calc(var(--u) * .7) calc(var(--u) * .7) 0 var(--ink); }
+#url { font-size:calc(var(--u) * .9); }
+#lobby h2 { text-transform:uppercase; letter-spacing:-.04em; font-size:calc(var(--u) * 2); display:flex; align-items:baseline; gap:.5em; }
+#lobby h2 small { font-family:var(--mono); text-transform:uppercase; letter-spacing:.02em; font-weight:400; }
+#pcount { font-family:var(--mono); background:var(--yellow); color:var(--ink); padding:0 .3em; border:var(--line); }
+.pchip { background:var(--white) !important; color:var(--ink); border:var(--line); box-shadow:3px 3px 0 var(--ink); text-transform:uppercase; letter-spacing:-.02em;
+  animation:pin .6s var(--snap) both; }
+.pchip small { color:var(--mute); }
+.pchip.off { opacity:.55; filter:grayscale(1); }
+.pchip .rm { color:#fff !important; }
+@keyframes pin { from { opacity:0; transform:translateY(14px) rotate(-3deg) scale(.9); } to { opacity:1; transform:none; } }
+.empty .big { text-transform:uppercase; letter-spacing:-.045em; }
+.btn { box-shadow:3px 3px 0 var(--ink); text-transform:uppercase; }
+.btn.y { background:var(--yellow); color:var(--ink); }
+.btn.y:hover:not(:disabled) { background:var(--white); color:var(--blue); }
+.btn.ghost { background:var(--white); color:var(--ink); }
+.btn.ghost:hover:not(:disabled) { background:var(--yellow); }
+.btn:not(.y):not(.ghost) { background:var(--ink); color:var(--white); }
+.btn:not(.y):not(.ghost):hover:not(:disabled) { background:var(--yellow); color:var(--ink); }
+.btn:disabled { background:var(--blue-3) !important; color:rgba(255,255,255,.55) !important; box-shadow:none !important; border-color:rgba(255,255,255,.3) !important; }
+.modebar { gap:calc(var(--u) * .6); }
+.modebar button { background:var(--blue-2); color:#fff; box-shadow:3px 3px 0 var(--ink); }
+.modebar button.sel { background:var(--yellow); color:var(--ink); }
+.tcard { border:var(--line); box-shadow:3px 3px 0 var(--ink); transition:transform .35s var(--ease), box-shadow .35s var(--ease), background-color .2s; }
+.tcard:hover { transform:translate(-2px, -2px); box-shadow:5px 5px 0 var(--ink); }
+.tcard b { text-transform:uppercase; letter-spacing:-.03em; font-family:var(--sans); }
+.tcard span { font-family:var(--mono); font-size:11px; }
+#msg { font-family:var(--mono); font-weight:700; }
+
+/* host menu */
+#hmenu { font-family:var(--sans); }
+#hmenu > button { background:var(--ink); color:var(--yellow); font-size:11px; font-family:var(--mono); box-shadow:none; border-width:0 0 2px 2px !important; }
+#hpanel { border:var(--line); }
+#hpanel button { font-family:var(--sans); }
+
+/* ==========================================================================
+   RACE RESULTS: the receipt of the race, rows as shelf tags
+   ========================================================================== */
+#results { background:var(--stone); }
+#rside { border-left:3px solid var(--ink); background:var(--white);
+  background-image:linear-gradient(rgba(17,17,17,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.04) 1px, transparent 1px); background-size:32px 32px; }
+#rside h1 { font-size:clamp(32px, 4vw, 64px); line-height:.88; letter-spacing:-.06em; }
+#rside h1 span { display:block; font-weight:800; font-size:.42em; letter-spacing:-.02em; color:var(--blue); margin-top:.25em; }
+#rfast { font-family:var(--mono); border:var(--line); box-shadow:4px 4px 0 var(--ink); text-transform:uppercase; font-size:clamp(12px, 1vw, 17px); }
+#rtable { gap:8px; padding:4px 8px 8px 0; }
+.rrow { background:var(--white); border:var(--line); box-shadow:4px 4px 0 var(--ink); animation:rowIn .6s var(--ease) both; }
+.rrow:nth-child(2) { animation-delay:.08s; } .rrow:nth-child(3) { animation-delay:.16s; } .rrow:nth-child(4) { animation-delay:.24s; }
+.rrow:nth-child(5) { animation-delay:.32s; } .rrow:nth-child(n+6) { animation-delay:.4s; }
+.rrow .nm { text-transform:uppercase; letter-spacing:-.03em; }
+.rrow .nm i { border:1.5px solid var(--ink); }
+.rrow .rk { color:var(--ink); font-weight:700; }
+.rrow.first { background:var(--yellow); }
+.rrow.first .nm::after { content:"1° POSTO"; font-family:var(--mono); font-size:11px; font-weight:700; background:var(--ink); color:var(--yellow); padding:2px 6px; margin-left:4px; }
+#continue { align-self:stretch; }
+@keyframes rowIn { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  #quiz::before, #quiz::after { display:none; }
+  .rrow, .pchip, .ans.ok, .ans.no, .ans.ok::before, .leader::before { animation:none !important; }
+}
+
+.welcome .crowd img { width:calc(var(--u) * 6.4); height:calc(var(--u) * 6.4); }
+.welcome .crowd.many img { width:calc(var(--u) * 4.6); height:calc(var(--u) * 4.6); }
+.welcome .wl { gap:calc(var(--u) * 2); }
+#quiz .tnum:empty { display:none; }
+.qrow .photo:not(.big) img { max-height:30vh; }
+.photo.big img { max-height:48vh; }
+.reveal.withimg .photo img { max-height:50vh; }
+/* keep the magnetic offset when hovered/pressed (beats the older hover rules) */
+#quiz .go:hover, #quiz .go:active, .btn:hover:not(:disabled), .btn:active:not(:disabled) {
+  transform:translate(calc(var(--mx, 0px) - var(--lift)), calc(var(--my, 0px) - var(--lift))); }

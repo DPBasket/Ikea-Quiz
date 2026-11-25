@@ -80,7 +80,7 @@ Se la classifica finale ha un vincitore chiaro (nessun pari merito, nessuno spar
 
 ## Pari merito: la gara di spareggio
 Se alla fine due o più giocatori hanno gli stessi punti, lo scontrino lo segna ("pari") e sullo schermo compare il bottone **Gara di spareggio**.
-- Corrono **solo i giocatori a pari merito**, sul percorso extra **SPAREGGIO**: non è un giro, si parte da A e si arriva a B (circa 2 minuti), con due ponti sopraelevati e un incrocio a raso.
+- Corrono **solo i giocatori a pari merito**, sul percorso extra **SPAREGGIO**: non è un giro, si parte da A e si arriva a B (circa 2 minuti), con tre passaggi sopraelevati (due ponti e un soppalco che porta all'arrivo) e nessun incrocio a raso.
 - Lo spareggio non dà punti: chi arriva prima passa davanti in classifica. Gli altri sul telefono vedono "Gara di spareggio" e guardano la TV.
 - Dopo la gara premi **Continua** e torni alla classifica finale aggiornata. Se restano altri pari merito (per esempio al 4° posto), il bottone ricompare.
 - All'incrocio a raso non si può girare: chi sbaglia strada viene rimesso sul suo percorso dopo un secondo.
@@ -112,9 +112,19 @@ I **poteri**: ne escono 3 a caso a testa. Quelli semplici escono spesso, quelli 
 - **Sbircia la classifica**: vedi la classifica attuale sul tuo telefono.
 - **Punti ×2**: se rispondi giusto, punti doppi.
 - **Togli una sbagliata**: sparisce una risposta sbagliata (non esce nella parte 3).
-- **Faaah**: al primo tocco dell'avversario su una risposta parte il suono col gattino e la risposta non vale; poi riprova.
-- **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario. Se due persone le mandano alla stessa, non raddoppiano.
-- **Scatoloni**: scatoloni che coprono le risposte per 4 secondi.
+- **Faaah**: ai primi due tocchi dell'avversario su una risposta parte il suono col gattino e il tocco non vale; poi riprova.
+- **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario.
+- **Scatoloni**: scatoloni che cadono sulle risposte e le coprono per 8 secondi.
+- **Sback** (sbrodolino + snack): sul telefono dell'avversario sparisce un quarto delle lettere delle risposte, con i segni dei morsi sulle caselle.
+
+**Gli ostacoli si sommano.** Se più persone lanciano lo stesso ostacolo alla stessa vittima, ogni copia in più vale +0,5: con 2 lanci l'effetto è 1,5 volte, con 3 lanci 2 volte.
+
+| Ostacolo | 1 lancio | 2 lanci | 3 lanci |
+|---|---|---|---|
+| Polpette | 10 polpette | 15 | 20 |
+| Scatoloni | 8 s | 12 s | 16 s |
+| Faaah | 2 tocchi mangiati | 3 | 4 |
+| Sback | 1/4 delle lettere | 2/5 | 3/6 (non di più) |
 
 Due poteri **speciali** non escono a caso: il quiz li dà a una sola persona.
 - **Rick roll**: uno solo per parte (4 in tutto). Sul telefono dell'avversario parte il video (10 s) e non può rispondere finché dura. Chi lo riceve e non lo usa, al turno dopo non può scegliere poteri (penitenza).
@@ -129,6 +139,18 @@ Apri `/player.html` in un'altra finestra per giocare anche tu.
 
 In locale: `npm install` e poi `npm start`, quindi apri `http://localhost:3000/host.html`.
 
+## Stile grafico
+Catalogo IKEA + libretto di istruzioni: blu `#0058AB`, giallo `#FFDA1A`, bianco, grigio magazzino `#F5F5F5`, nero `#111111`.
+Titoli in **Plus Jakarta Sans** maiuscolo, numeri (codice, secondi, punti, tempi) in **Space Mono**. I font sono dentro `public/fonts`, quindi funzionano anche senza internet.
+- Domande, risposte, punteggi e giocatori sono cartellini del prezzo: bordo nero 2px, angoli vivi, ombra netta.
+- Risposta giusta: cartellino giallo con la spunta tonda. Risposta sbagliata (sul telefono): croce rossa e una piccola scossa.
+- Regole di ogni parte come istruzioni di montaggio, con i passaggi cerchiati ① ② ③ e i disegni (chiave a brugola, matita, pacco piatto).
+- Cambio schermata: una tendina gialla e blu attraversa lo schermo. Timer: barra gialla su fascia blu, con le tacche del metro.
+- Gare: cartelli di corsia sospesi (“Corsia 01 · Scaffale A”), classifica a cartellini con il numero cerchiato e l'etichetta **1° POSTO**, che compare anche sopra il kart in testa.
+- Pulsanti: sul computer si avvicinano al mouse, quando li premi si schiacciano; sul telefono una piccola vibrazione.
+
+Lo stile sta in `public/theme-tv.css` (schermo), `public/theme-phone.css` (telefono) e `public/ikea-ui.js` (micro-animazioni): si possono cambiare senza toccare il gioco.
+
 ## File
 ```
 server.js        server: gare (fisica, oggetti, bot) + collegamento al quiz
@@ -137,5 +159,7 @@ quiz-data.js     contenuto: 41 domande, gare, poteri, tempi
 public/host.html, quiz-host.js, quiz-host.css        schermo TV
 public/player.html, quiz-player.js, quiz-player.css  telefono
 public/render.js, tracks.js                          grafica 3D, piste, avatar
+public/theme-tv.css, theme-phone.css, ikea-ui.js     stile IKEA e micro-animazioni
+public/fonts.css, fonts/                             font Plus Jakarta Sans e Space Mono
 public/q-*.jpg, q-logo-*.png                          foto delle domande e loghi
 ```

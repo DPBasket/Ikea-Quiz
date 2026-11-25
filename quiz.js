@@ -587,9 +587,8 @@ function createQuiz(ctx) {
     for (const [from, c] of Object.entries(flow.cur.powers)) {
       const def = DATA.POWERS[c.power]; if (!def || def.kind !== 'obstacle') continue;
       const shield = (eff[c.target] || []).some(e => e.power === 'SCUDO');
-      // the same obstacle twice on the same person doesn't add up (one load of meatballs is enough)
-      const dup = (eff[c.target] || []).some(e => e.power === c.power && !e.blocked);
-      (eff[c.target] = eff[c.target] || []).push({ power: c.power, from, blocked: shield, dup: dup || undefined });
+      // the same obstacle more than once adds up: every extra copy counts +0.5 on the phone (see quiz-data)
+      (eff[c.target] = eff[c.target] || []).push({ power: c.power, from, blocked: shield });
     }
     flow.cur.effects = eff;
     // effects that need a decision now
@@ -602,7 +601,7 @@ function createQuiz(ctx) {
         const wrong = flow.cur.perm.map((orig, i) => (orig === q.correct ? -1 : i)).filter(i => i >= 0);
         (flow.cur.removed[pid] = flow.cur.removed[pid] || []).push({ i: wrong[Math.floor(Math.random() * wrong.length)], why: 'togli' });
       }
-      if (e.power === 'VIAGIUSTA' && q.type === 'choice' && !e.dup) {
+      if (e.power === 'VIAGIUSTA' && q.type === 'choice') {
         const right = flow.cur.perm.indexOf(q.correct), list = (flow.cur.removed[pid] = flow.cur.removed[pid] || []);
         const t = list.find(x => x.i === right);
         if (t) { t.why = 'via'; t.from = e.from; } else list.push({ i: right, why: 'via', from: e.from });

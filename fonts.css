@@ -1,0 +1,8 @@
+/* self-hosted fonts (SIL Open Font License): work offline at the party too */
+@font-face { font-family:"Plus Jakarta Sans"; font-style:normal; font-weight:400; font-display:swap; src:url(fonts/jakarta-400.woff2) format("woff2"); }
+@font-face { font-family:"Plus Jakarta Sans"; font-style:normal; font-weight:500; font-display:swap; src:url(fonts/jakarta-500.woff2) format("woff2"); }
+@font-face { font-family:"Plus Jakarta Sans"; font-style:normal; font-weight:600; font-display:swap; src:url(fonts/jakarta-600.woff2) format("woff2"); }
+@font-face { font-family:"Plus Jakarta Sans"; font-style:normal; font-weight:700; font-display:swap; src:url(fonts/jakarta-700.woff2) format("woff2"); }
+@font-face { font-family:"Plus Jakarta Sans"; font-style:normal; font-weight:800; font-display:swap; src:url(fonts/jakarta-800.woff2) format("woff2"); }
+@font-face { font-family:"Space Mono"; font-style:normal; font-weight:400; font-display:swap; src:url(fonts/spacemono-400.woff2) format("woff2"); }
+@font-face { font-family:"Space Mono"; font-style:normal; font-weight:700; font-display:swap; src:url(fonts/spacemono-700.woff2) format("woff2"); }

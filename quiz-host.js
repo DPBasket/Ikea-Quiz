@@ -259,7 +259,7 @@
       x.save(); x.rotate(a0 + sa / 2);
       const dark = ['#FFDB00', '#00A3E0', '#FF7A00'].includes(SLICE_COLORS[i % SLICE_COLORS.length]) && !special;
       x.fillStyle = special ? '#FFDB00' : rick ? '#E4002B' : dark ? '#111111' : '#FFFFFF';
-      x.font = `800 ${Math.round(W * 0.036 * Math.max(0.72, Math.min(1, (slices[i].w || 1))))}px "Noto Sans", system-ui, sans-serif`;
+      x.font = `800 ${Math.round(W * 0.036 * Math.max(0.72, Math.min(1, (slices[i].w || 1))))}px "Plus Jakarta Sans", system-ui, sans-serif`;
       x.textBaseline = 'middle';
       // on the left half of the wheel the text is turned round, so it never reads upside down
       if (Math.cos(rot + a0 + sa / 2) < 0) { x.rotate(Math.PI); x.textAlign = 'left'; x.fillText(slices[i].label.toUpperCase(), -(R0 - W * 0.04), 0); }
@@ -273,7 +273,7 @@
     // hub
     x.fillStyle = '#0058A3'; x.beginPath(); x.arc(c, c, W * 0.12, 0, TAU); x.fill();
     x.lineWidth = W * 0.012; x.strokeStyle = '#FFDB00'; x.stroke();
-    x.fillStyle = '#FFDB00'; x.font = `900 ${Math.round(W * 0.07)}px "Noto Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillStyle = '#FFDB00'; x.font = `900 ${Math.round(W * 0.07)}px "Plus Jakarta Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('IKEA', c, c + W * 0.004);
     // pointer at the top
     x.fillStyle = '#FFDB00'; x.strokeStyle = '#111111'; x.lineWidth = W * 0.008;

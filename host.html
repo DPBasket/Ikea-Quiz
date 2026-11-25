@@ -5,13 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IKEA QUIZ · Schermo</title>
 <link rel="stylesheet" href="quiz-host.css">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <style>
   :root { --blue:#0058A3; --blue-2:#004F93; --yellow:#FFDB00; --ink:#111; --floor:#F2F2F2; --track:#E0E0E0; --grey:#5C5C5C; }
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; background:var(--blue); color:var(--ink); overflow:hidden;
-    font-family:"Noto Sans", system-ui, sans-serif; }
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif; }
   button { font:inherit; cursor:pointer; border:0; border-radius:0; }
   .screen { position:absolute; inset:0; display:none; }
   .screen.on { display:flex; }
@@ -73,7 +72,7 @@
   .modebar button { flex:1; font-weight:800; font-size:calc(var(--u) * 1.25); padding:.6em; background:var(--blue-2); color:#fff; }
   .modebar button.sel { background:#fff; color:var(--blue); }
   /* host menu: on every screen except the lobby */
-  #hmenu { position:fixed; top:0; right:0; z-index:60; display:none; flex-direction:column; align-items:flex-end; font-family:"Noto Sans", system-ui, sans-serif; }
+  #hmenu { position:fixed; top:0; right:0; z-index:60; display:none; flex-direction:column; align-items:flex-end; font-family:"Plus Jakarta Sans", system-ui, sans-serif; }
   body.inplay #hmenu { display:flex; }
   #hmenu > button { background:rgba(17,17,17,.55); color:#fff; font-weight:800; font-size:12px; padding:.45em .9em; }
   #hmenu > button:hover { background:#111; }
@@ -111,6 +110,7 @@
   .rrow.first { background:var(--yellow); }
   #continue { font-size:22px; margin-top:auto; }
 </style>
+<link rel="stylesheet" href="theme-tv.css">
 </head>
 <body>
 
@@ -168,6 +168,7 @@
   </div>
 </section>
 
+<script src="ikea-ui.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/three.min.js"></script>
 <script src="tracks.js"></script>
@@ -395,63 +396,98 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+const HF = '"Plus Jakarta Sans", Verdana, sans-serif', HM = '"Space Mono", ui-monospace, monospace';
+// a shelf tag: fill, 2px black edge, optional hard shadow
+function tagRect(x, y, w, h, fill, sh) {
+  if (sh) { ctx.fillStyle = '#111111'; ctx.fillRect(x + sh, y + sh, w, h); }
+  ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
+  ctx.lineWidth = 2; ctx.strokeStyle = '#111111'; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+}
 function drawHud(now, cw, ch, panel) {
   const C = R.C;
-  // standings panel
+  // standings panel: white sheet with the thin grid of the assembly booklet
   const px = cw - panel;
   ctx.fillStyle = '#fff'; ctx.fillRect(px, 0, panel, ch);
+  ctx.strokeStyle = 'rgba(17,17,17,.05)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let gx = px + 16; gx < cw; gx += 16) { ctx.moveTo(gx + .5, 0); ctx.lineTo(gx + .5, ch); }
+  for (let gy = 0; gy < ch; gy += 16) { ctx.moveTo(px, gy + .5); ctx.lineTo(cw, gy + .5); }
+  ctx.stroke();
   ctx.fillStyle = C.ink; ctx.fillRect(px, 0, 3, ch);
-  ctx.fillStyle = C.blue; ctx.fillRect(px + 3, 0, panel - 3, 70);
-  ctx.fillStyle = C.yellow; ctx.font = '900 20px Verdana, Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(race.track.name, px + 18, 24, panel - 30);
-  ctx.fillStyle = '#fff'; ctx.font = '800 15px Verdana, Arial, sans-serif';
+  ctx.fillStyle = C.blue; ctx.fillRect(px + 3, 0, panel - 3, 76);
+  ctx.fillStyle = C.ink; ctx.fillRect(px + 3, 74, panel - 3, 2);
+  ctx.fillStyle = C.yellow; ctx.font = `800 21px ${HF}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(race.track.name).toUpperCase(), px + 16, 24, panel - 30);
   const t = state ? state.t : -(countdownEnd - now);
-  ctx.fillText(t > 0 ? R.fmtTime(t) : 'PRONTI…', px + 18, 50);
+  const tt = t > 0 ? R.fmtTime(t) : 'PRONTI…';
+  ctx.font = `700 15px ${HM}`; const tw = ctx.measureText(tt).width + 16;
+  ctx.fillStyle = C.ink; ctx.fillRect(px + 16, 42, tw, 22);
+  ctx.fillStyle = '#fff'; ctx.fillText(tt, px + 24, 53.5);
   if (state) {
     const byId = {}; state.p.forEach(p => { byId[p.i] = p; });
-    const rowH = Math.max(26, Math.min(58, (ch - 240) / Math.max(1, state.o.length)));
+    const rowH = Math.max(26, Math.min(58, (ch - 250) / Math.max(1, state.o.length)));
+    const gap = rowH > 34 ? 5 : 3, h = rowH - gap;
     state.o.forEach((id, i) => {
       const p = byId[id], car = race.cars[id];
       if (!p || !car) return;
-      const y = 84 + i * rowH;
-      ctx.fillStyle = i % 2 ? '#fff' : C.floor; ctx.fillRect(px + 3, y, panel - 3, rowH);
-      ctx.fillStyle = C.blue; ctx.font = `900 ${Math.min(26, rowH * 0.5)}px Verdana, sans-serif`; ctx.textAlign = 'left';
-      ctx.fillText(i + 1, px + 12, y + rowH / 2);
-      ctx.fillStyle = car.color; ctx.fillRect(px + 46, y + rowH / 2 - 7, 14, 14);
-      ctx.fillStyle = C.ink; ctx.font = `800 ${Math.min(17, rowH * 0.34)}px Verdana, sans-serif`;
-      ctx.fillText(car.name, px + 68, y + rowH / 2 - (p.fin ? 0 : 7), panel - 130);
-      ctx.font = `700 ${Math.min(12, rowH * 0.24)}px Verdana, sans-serif`; ctx.fillStyle = '#767676';
-      if (p.fin) { ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '900 14px Verdana, sans-serif'; ctx.fillText(R.fmtTime(p.ft), cw - 12, y + rowH / 2); }
+      const y = 88 + i * rowH, x = px + 12, w = panel - 24, mid = y + h / 2;
+      const lead = i === 0;
+      tagRect(x, y, w, h, lead ? C.yellow : '#fff', lead ? 3 : 0);
+      // rank in a circle, like the step numbers of the booklet
+      const r = Math.min(13, h * 0.36);
+      ctx.beginPath(); ctx.arc(x + 8 + r, mid, r, 0, Math.PI * 2);
+      ctx.fillStyle = lead ? C.ink : '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.ink; ctx.stroke();
+      ctx.fillStyle = lead ? C.yellow : C.ink; ctx.font = `700 ${Math.round(r * 1.15)}px ${HM}`; ctx.textAlign = 'center';
+      ctx.fillText(i + 1, x + 8 + r, mid + 1);
+      const nx = x + 16 + r * 2;
+      ctx.fillStyle = car.color; ctx.fillRect(nx, mid - 6, 12, 12); ctx.lineWidth = 1.5; ctx.strokeRect(nx + .75, mid - 5.25, 10.5, 10.5);
+      ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = `800 ${Math.min(16, h * 0.36)}px ${HF}`;
+      ctx.fillText(String(car.name).toUpperCase(), nx + 18, mid - (p.fin || h < 30 ? 0 : 7), w - (nx - x) - 60);
+      if (p.fin) { ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = `700 13px ${HM}`; ctx.fillText(R.fmtTime(p.ft), x + w - 8, mid + 1); }
       else {
-        ctx.fillText(race.track.open ? 'DA A A B' : `GIRO ${Math.min(race.laps, p.l + 1)}/${race.laps}`, px + 68, y + rowH / 2 + 10);
-        if (p.it) R.drawItem(ctx, p.it, cw - 26, y + rowH / 2, 1.2);
+        if (h >= 30) { ctx.font = `400 ${Math.min(11, h * 0.24)}px ${HM}`; ctx.fillStyle = lead ? C.ink : '#5C5C5C';
+          ctx.fillText(race.track.open ? 'DA A → B' : `GIRO ${Math.min(race.laps, p.l + 1)}/${race.laps}`, nx + 18, mid + 9); }
+        if (p.it) R.drawItem(ctx, p.it, x + w - 16, mid, 1.1);
+      }
+      if (lead && h >= 30) {               // the yellow "1° POSTO" label sticks out of the leader's tag
+        ctx.font = `700 9px ${HM}`; const lw = ctx.measureText('1° POSTO').width + 10;
+        ctx.fillStyle = C.ink; ctx.fillRect(x + w - lw - 6, y - 6, lw, 13);
+        ctx.fillStyle = C.yellow; ctx.textAlign = 'left'; ctx.fillText('1° POSTO', x + w - lw - 1, y + 1);
       }
     });
   }
-  // ticker
+  // ticker: small labels with the colour of who did it
   ctx.textAlign = 'left';
   ticker.forEach((m, i) => {
     const age = (now - m.at) / 1000; if (age > 6) return;
     ctx.globalAlpha = Math.max(0, Math.min(1, 6 - age));
-    const y = ch - 30 - i * 26;
-    ctx.font = '800 13px Verdana, sans-serif'; const w = ctx.measureText(m.text).width + 22;
-    ctx.fillStyle = '#fff'; ctx.fillRect(px + 12, y - 11, Math.min(w, panel - 24), 22);
-    ctx.fillStyle = m.color; ctx.fillRect(px + 12, y - 11, 5, 22);
-    ctx.fillStyle = C.ink; ctx.fillText(m.text, px + 22, y + 1, panel - 40);
+    const slide = Math.max(0, 1 - age * 4) * 30;
+    const y = ch - 32 - i * 28;
+    ctx.font = `700 12px ${HF}`; const w = Math.min(ctx.measureText(m.text).width + 26, panel - 24);
+    tagRect(px + 12 + slide, y - 12, w, 24, '#fff', 0);
+    ctx.fillStyle = m.color; ctx.fillRect(px + 14 + slide, y - 10, 6, 20);
+    ctx.fillStyle = C.ink; ctx.fillText(m.text, px + 26 + slide, y + 1, panel - 44);
     ctx.globalAlpha = 1;
   });
   const area = cw - panel;
-  // countdown
+  // countdown: the numbers come as the circled step numbers of the booklet
   const left = countdownEnd - now;
   if (left > 0) {
-    ctx.fillStyle = 'rgba(245,245,245,.7)'; ctx.fillRect(0, 0, area, ch);
-    const txt = left > 3000 ? 'TELEFONI PIATTI…' : String(Math.ceil(left / 1000));
-    bigText(txt, area / 2, ch / 2, left > 3000 ? 54 : 180, C.blue);
-  } else if (now < goFlash) bigText('KÖR!', area / 2, ch / 2, 160, C.blue);
+    ctx.fillStyle = 'rgba(245,245,245,.72)'; ctx.fillRect(0, 0, area, ch);
+    if (left > 3000) stampTag('TELEFONI PIATTI…', area / 2, ch / 2, 46, '#fff', -2);
+    else {
+      const n = Math.ceil(left / 1000), f = (left % 1000) / 1000, s = 1 + Math.max(0, f - 0.75) * 1.6;
+      const rr = Math.min(ch * 0.2, 150) * s;
+      ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(area / 2 + 8, ch / 2 + 8, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(area / 2, ch / 2, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 6; ctx.strokeStyle = C.ink; ctx.stroke();
+      ctx.fillStyle = C.ink; ctx.font = `700 ${Math.round(rr * 1.25)}px ${HM}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(n, area / 2, ch / 2 + rr * 0.06);
+    }
+  } else if (now < goFlash) stampTag('KÖR!', area / 2, ch / 2, 140, C.yellow, -4);
   if (banner && now < banner.until) {
-    ctx.font = '900 28px Verdana, sans-serif'; const w = ctx.measureText(banner.text).width + 50;
-    ctx.fillStyle = C.yellow; ctx.fillRect(area / 2 - w / 2, 18, w, 54);
-    ctx.fillStyle = banner.color; ctx.textAlign = 'center'; ctx.fillText(banner.text, area / 2, 46);
+    ctx.font = `800 26px ${HF}`; const text = String(banner.text).toUpperCase(), w = ctx.measureText(text).width + 50;
+    tagRect(area / 2 - w / 2, 18, w, 54, C.yellow, 5);
+    ctx.fillStyle = banner.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, area / 2, 46);
   }
   if (now < flashUntil && Math.floor(now / 140) % 2) {      // SWEDISH FLAG flash
     ctx.globalAlpha = 0.35; ctx.fillStyle = '#006AA7'; ctx.fillRect(0, 0, area, ch);
@@ -460,8 +496,18 @@ function drawHud(now, cw, ch, panel) {
   }
   if (now < darkUntil) { ctx.fillStyle = 'rgba(0,0,0,.82)'; ctx.fillRect(0, 0, area, ch); bigText('BLACKOUT', area / 2, ch / 2, 60, '#333'); }
 }
+// a big price tag, slightly turned, with a hard shadow
+function stampTag(t, x, y, size, fill, deg) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate((deg || 0) * Math.PI / 180);
+  ctx.font = `800 ${size}px ${HF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(t).width + size * 0.9, h = size * 1.45;
+  tagRect(-w / 2, -h / 2, w, h, fill, Math.max(5, size * 0.08));
+  ctx.lineWidth = 3; ctx.strokeRect(-w / 2 + 1.5, -h / 2 + 1.5, w - 3, h - 3);
+  ctx.fillStyle = '#111111'; ctx.fillText(t, 0, size * 0.04);
+  ctx.restore();
+}
 function bigText(t, x, y, size, color) {
-  ctx.font = `900 ${size}px Verdana, Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `800 ${size}px ${HF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineWidth = size / 10; ctx.strokeStyle = '#fff'; ctx.lineJoin = 'round'; ctx.strokeText(t, x, y);
   ctx.fillStyle = color; ctx.fillText(t, x, y);
 }
@@ -498,7 +544,7 @@ function drawPodium(now) {
   x.fillStyle = C.floor; x.fillRect(0, 0, cw, ch);
   x.fillStyle = C.track; x.fillRect(0, ch * 0.86, cw, ch * 0.14);
   x.fillStyle = C.yellow; for (let i = 0; i < cw; i += 40) x.fillRect(i, ch * 0.86, 24, 4);
-  x.fillStyle = C.blue; x.font = `900 ${Math.round(ch * 0.07)}px Verdana, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = C.blue; x.font = `900 ${Math.round(ch * 0.07)}px "Plus Jakarta Sans", Verdana, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
   x.fillText('IL PODIO IN ESPOSIZIONE', cw / 2, ch * 0.09, cw - 30);
   const u = Math.min(cw / 3.4, ch / 3.2);         // shelf cube size
   const slots = [{ rank: 2, cx: cw / 2 - u * 1.1, h: 2 }, { rank: 1, cx: cw / 2, h: 3 }, { rank: 3, cx: cw / 2 + u * 1.1, h: 1 }];
@@ -518,7 +564,7 @@ function drawPodium(now) {
       R.drawBoxShape(x, sl.cx - sw / 4, cy + cs * 0.4, cs);
       x.save(); x.translate(sl.cx + sw / 4, cy); x.scale(u / 80, u / 80); R.drawIcon(x, ['lamp', 'plant', 'cup'][k % 3], 0, 0, 0.8); x.restore();
     }
-    x.fillStyle = C.blue; x.font = `900 ${Math.round(u * 0.32)}px Verdana, sans-serif`; x.fillText(sl.rank, sl.cx - sw / 4, sy + sh / sl.h * 0.5 - u * 0.17);
+    x.fillStyle = C.blue; x.font = `900 ${Math.round(u * 0.32)}px "Plus Jakarta Sans", Verdana, sans-serif`; x.fillText(sl.rank, sl.cx - sw / 4, sy + sh / sl.h * 0.5 - u * 0.17);
     if (!r) return;
     // car "product" drops onto the shelf
     const delay = { 3: 0.3, 2: 0.9, 1: 1.6 }[sl.rank], k = Math.max(0, Math.min(1, (t - delay) / 0.9));
@@ -534,8 +580,8 @@ function drawPodium(now) {
       const tw = u * 0.95, th = u * 0.36, tx = sl.cx - tw / 2, ty = base + ch * 0.015;
       x.fillStyle = C.yellow; x.fillRect(tx, ty, tw, th);
       x.strokeStyle = C.ink; x.lineWidth = 2; x.strokeRect(tx, ty, tw, th);
-      x.fillStyle = C.ink; x.font = `900 ${Math.round(th * 0.36)}px Verdana, sans-serif`; x.fillText(r.name, sl.cx, ty + th * 0.33, tw - 10);
-      x.fillStyle = C.blue; x.font = `900 ${Math.round(th * 0.3)}px Verdana, sans-serif`;
+      x.fillStyle = C.ink; x.font = `900 ${Math.round(th * 0.36)}px "Plus Jakarta Sans", Verdana, sans-serif`; x.fillText(r.name, sl.cx, ty + th * 0.33, tw - 10);
+      x.fillStyle = C.blue; x.font = `900 ${Math.round(th * 0.3)}px "Plus Jakarta Sans", Verdana, sans-serif`;
       x.fillText(r.time == null ? '—' : R.fmtTime(r.time), sl.cx, ty + th * 0.73);
     }
   });

@@ -1,0 +1,257 @@
+/* ==========================================================================
+   IKEA QUIZ & RACE · phone theme ("the shelf label in your hand")
+   Loaded after quiz-player.css and the inline styles of player.html: presentation only.
+   Plus Jakarta Sans for words, Space Mono for numbers. Black 2px edges, square corners,
+   hard offset shadows that disappear when a button is pressed flat under the thumb.
+   ========================================================================== */
+:root {
+  --blue:#0058AB; --blue-2:#004C94; --blue-3:#003F7D;
+  --yellow:#FFDA1A; --ink:#111111; --floor:#FFFFFF; --stone:#F5F5F5; --grey:#5C5C5C; --red:#D81E05;
+  --sans:"Plus Jakarta Sans", "Noto Sans", system-ui, sans-serif;
+  --mono:"Space Mono", ui-monospace, Menlo, monospace;
+  --ease:cubic-bezier(.16, 1, .3, 1); --snap:cubic-bezier(.34, 1.56, .64, 1);
+  --line:2px solid var(--ink);
+  --i-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%23111' stroke-width='3'/%3E%3Cpath d='M11 20.5l6 6 12-13' fill='none' stroke='%23111' stroke-width='4' stroke-linecap='square'/%3E%3C/svg%3E");
+  --i-cross:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%23111' stroke-width='3'/%3E%3Cpath d='M13 13l14 14M27 13L13 27' stroke='%23D81E05' stroke-width='4.5' stroke-linecap='square'/%3E%3C/svg%3E");
+  --i-allen:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 8v34a8 8 0 0 0 8 8h30'/%3E%3Cpath d='M20 8v34a2 2 0 0 0 2 2h30'/%3E%3Cpath d='M14 8h6M52 44v6'/%3E%3C/svg%3E");
+  --i-pencil:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' stroke='%23111' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M44 6l14 14-30 30-14-14z' fill='%23FFDA1A'/%3E%3Cpath d='M14 36l14 14-18 4z' fill='%23fff'/%3E%3Cpath d='M10 54l2-6 4 4z' fill='%23111'/%3E%3C/svg%3E");
+  --i-pack:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23111' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M6 30l26-14 26 14-26 14z' fill='%23E3CBA0'/%3E%3Cpath d='M6 30v8l26 14 26-14v-8' fill='%23C9AD7E'/%3E%3Cpath d='M32 44v8'/%3E%3Cpath d='M19 23l26 14' stroke-dasharray='3 3'/%3E%3C/svg%3E");
+  --grid:linear-gradient(rgba(17,17,17,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.045) 1px, transparent 1px);
+}
+html, body { font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+#join, #wait, #done { background-color:#fff; background-image:var(--grid); background-size:24px 24px; }
+
+/* ---------- brand: a blue tag with the yellow word ---------- */
+.brand { display:inline-flex; align-self:flex-start; align-items:baseline; gap:.22em; background:var(--blue); color:var(--yellow); font-weight:800; font-size:30px;
+  text-transform:uppercase; letter-spacing:-.05em; line-height:1; padding:.22em .4em .18em; border:var(--line); box-shadow:4px 4px 0 var(--ink); }
+.brand span { color:#fff; font-weight:800; }
+#join .intro { font-size:16px; line-height:1.45; letter-spacing:-.01em; max-width:34ch; }
+
+/* the join form as assembly steps: ① code ② name ③ object ④ colour */
+#join { counter-reset:step; gap:18px; }
+#join > div > label { counter-increment:step; display:flex; align-items:center; gap:8px; font-family:var(--mono); font-weight:700; font-size:12px;
+  text-transform:uppercase; letter-spacing:.02em; margin-bottom:8px; }
+#join > div > label::before { content:counter(step); flex:none; width:24px; height:24px; border-radius:50%; border:var(--line); display:flex; align-items:center;
+  justify-content:center; font-size:12px; background:#fff; }
+label { font-family:var(--mono); font-size:12px; text-transform:uppercase; letter-spacing:.02em; }
+input { background:#fff; border:var(--line); border-bottom:var(--line); box-shadow:3px 3px 0 var(--ink); font-family:var(--sans); font-weight:800; letter-spacing:-.02em;
+  transition:background-color .2s, box-shadow .3s var(--ease), transform .3s var(--ease); }
+input:focus { background:#FFF6C2; border-bottom-color:var(--ink); box-shadow:5px 5px 0 var(--ink); transform:translate(-2px, -2px); }
+#code { font-family:var(--mono); font-weight:700; font-size:28px; letter-spacing:.3em; }
+#err { font-family:var(--mono); font-size:13px; }
+
+/* avatars + colours: square tiles */
+#avatars button, #avatars2 button { background:#fff !important; border:var(--line) !important; transition:transform .3s var(--snap), background-color .2s, box-shadow .3s var(--ease); }
+#avatars button.sel, #avatars2 button.sel { background:var(--yellow) !important; box-shadow:3px 3px 0 var(--ink); transform:translate(-2px, -2px); }
+#avatars button:active, #avatars2 button:active { transform:translate(1px, 1px); }
+.sw { border-radius:0; border:var(--line); box-shadow:none; transition:transform .3s var(--snap), box-shadow .3s var(--ease); }
+.sw.sel { box-shadow:3px 3px 0 var(--ink); transform:translate(-2px, -2px) scale(1.06); outline:2px solid #fff; outline-offset:-5px; }
+.avprev { background:#fff; border:var(--line); padding:8px 12px 8px 8px; box-shadow:4px 4px 0 var(--ink); position:relative; }
+.avprev::after { content:"ART. 104.218.33"; position:absolute; right:8px; top:6px; font-family:var(--mono); font-size:10px; opacity:.5; }
+.avprev .muted { font-size:13px; }
+
+/* ---------- buttons ---------- */
+.btn, .act { --lift:0px; border:var(--line) !important; border-radius:0; box-shadow:4px 4px 0 var(--ink); font-family:var(--sans); font-weight:800;
+  text-transform:uppercase; letter-spacing:-.03em; transform:translate(calc(var(--mx, 0px) - var(--lift)), calc(var(--my, 0px) - var(--lift)));
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease), background-color .18s, color .18s; }
+.btn:active, .act:active { transform:translate(4px, 4px); box-shadow:0 0 0 var(--ink); transition-duration:.06s; }
+.btn.y, .act { background:var(--yellow); color:var(--ink); }
+.btn:not(.y):not(.ghost) { background:var(--blue); color:#fff; }
+.btn.ghost { background:#fff; color:var(--ink); box-shadow:3px 3px 0 var(--ink); text-transform:none; letter-spacing:-.01em; }
+.btn.ghost.sel, .btn.sel { background:var(--yellow); color:var(--ink); }
+#go { font-size:20px; padding:18px; display:flex; align-items:center; justify-content:center; gap:10px; }
+#go::after { content:"→"; font-weight:800; transition:transform .3s var(--snap); }
+#go:active::after { transform:translateX(6px); }
+.act.quiet { background:#fff; color:var(--ink); }
+
+/* ---------- waiting room ---------- */
+.card { background:#fff; border:var(--line); box-shadow:4px 4px 0 var(--ink); }
+#wait > .card:nth-child(2) { position:relative; }
+#wait > .card:nth-child(2)::before { content:""; position:absolute; left:10px; top:10px; width:40px; height:40px; background:var(--i-allen) center / contain no-repeat; transform:rotate(-12deg); }
+#wait > .card:nth-child(2)::after { content:""; position:absolute; right:10px; bottom:10px; width:44px; height:44px; background:var(--i-pack) center / contain no-repeat; }
+#myname { text-transform:uppercase; letter-spacing:-.05em; color:var(--ink) !important; background:var(--yellow); padding:0 .25em; border:var(--line); }
+.big { font-family:var(--sans); letter-spacing:-.05em; }
+details.card summary { text-transform:uppercase; letter-spacing:-.02em; list-style:none; }
+details.card summary::-webkit-details-marker { display:none; }
+details.card summary::before { content:"+"; display:inline-flex; width:22px; height:22px; border:var(--line); align-items:center; justify-content:center; margin-right:8px;
+  font-family:var(--mono); transition:transform .3s var(--snap); }
+details.card[open] summary::before { content:"−"; }
+#tiltbar { border:var(--line); background:#fff; }
+#tiltbar i { background:var(--yellow); border-left:var(--line); border-right:var(--line); }
+
+/* ---------- done ---------- */
+#drank { font-family:var(--mono); font-weight:700; color:var(--ink) !important; background:var(--yellow); border:3px solid var(--ink); padding:0 .15em; box-shadow:6px 6px 0 var(--ink);
+  letter-spacing:-.08em; animation:stampP .6s var(--snap) both; }
+#dtime { font-family:var(--mono); }
+#dpts { font-family:var(--mono); }
+
+/* ---------- race controls: chunky labelled hardware ---------- */
+#steer { border:3px solid var(--ink); border-radius:0; background:rgba(255,255,255,.82); box-shadow:4px 4px 0 var(--ink); }
+#steer span { color:var(--ink); }
+#steer span + span { border-left:3px solid var(--ink); }
+#steer span.on { background:var(--yellow); }
+#gas { background:var(--yellow); border:3px solid var(--ink); color:var(--ink); box-shadow:4px 4px 0 var(--ink); font-family:var(--mono); font-weight:700; letter-spacing:.04em;
+  transition:transform .08s, box-shadow .08s; }
+#gas.on { background:#FFE766; transform:translate(4px, 4px); box-shadow:0 0 0 var(--ink); }
+#pu { border:3px solid rgba(17,17,17,.5); font-family:var(--mono); }
+#pu.ready { background:var(--blue); border-color:var(--ink); box-shadow:3px 3px 0 var(--ink); }
+#catch { border:4px solid var(--ink); background:var(--yellow); color:var(--ink); box-shadow:6px 6px 0 var(--ink); font-family:var(--sans); letter-spacing:-.04em; }
+#overlay .big { font-family:var(--mono); font-weight:700; color:var(--blue); text-shadow:5px 5px 0 #fff; letter-spacing:-.06em; }
+#dark { font-family:var(--mono); }
+#rotate { background-image:linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px); background-size:24px 24px;
+  text-transform:uppercase; letter-spacing:-.04em; }
+/* sabotage panel: a catalogue drawer */
+#sab { border-top:3px solid var(--ink); box-shadow:0 -4px 0 var(--yellow); background-image:var(--grid); background-size:20px 20px; }
+#sab h3 { text-transform:uppercase; letter-spacing:-.04em; color:var(--ink); }
+#sab .how { font-size:13px; }
+#sab .opt { background:#fff; border:var(--line); box-shadow:3px 3px 0 var(--ink); font-family:var(--sans); text-transform:uppercase; letter-spacing:-.02em;
+  transition:transform .25s var(--snap), box-shadow .25s var(--ease), background-color .15s; }
+#sab .opt small { font-family:var(--mono); font-size:9px; text-transform:none; font-weight:400; }
+#sab .opt.sel { background:var(--yellow); color:var(--ink); border-color:var(--ink); transform:translate(-2px, -2px); box-shadow:5px 5px 0 var(--ink); }
+#sab .tg button { border:var(--line); box-shadow:3px 3px 0 var(--ink); text-transform:uppercase; letter-spacing:-.02em; transition:transform .06s, box-shadow .06s; }
+#sab .tg button:active { transform:translate(3px, 3px); box-shadow:none; }
+#sab .tg button small { font-family:var(--mono); }
+
+/* ==========================================================================
+   QUIZ on the phone
+   ========================================================================== */
+#quiz { font-family:var(--sans); background-color:#fff; background-image:var(--grid); background-size:24px 24px; }
+#quiz .qh { border-bottom:var(--line); gap:10px; }
+#quiz .qh img { border:var(--line); }
+#quiz .qh p { text-transform:uppercase; letter-spacing:-.03em; }
+#quiz .qh span { font-family:var(--mono); text-transform:uppercase; font-size:10.5px; letter-spacing:.01em; font-weight:400; margin-top:2px; opacity:.85; }
+/* your score: a yellow price tag hanging in the corner */
+#quiz .qh .sc { background:var(--yellow); color:var(--ink); border:var(--line); padding:3px 8px 3px; font-family:var(--mono); font-weight:700; font-size:19px; letter-spacing:-.04em;
+  box-shadow:3px 3px 0 var(--ink); line-height:1.05; position:relative; }
+#quiz .qh .sc span { display:block; font-size:9.5px; opacity:1; margin:0; letter-spacing:0; }
+/* timer: yellow bar running out on a blue band */
+#quiz .qbar { height:10px; background:var(--blue); border-bottom:var(--line); }
+#quiz .qbar i { background:var(--yellow); border-right:2px solid var(--ink); }
+#quiz .qc { gap:16px; padding:20px 16px 28px; }
+
+.qc .huge { text-transform:uppercase; letter-spacing:-.055em; line-height:.92; font-size:min(11.5vw, 50px); }
+.qc .huge.yl { background:var(--yellow); border:3px solid var(--ink); padding:.08em .22em .04em; box-shadow:5px 5px 0 var(--ink); }
+.qc .kick { display:inline-block; align-self:flex-start; background:var(--ink); color:var(--yellow); font-family:var(--mono); font-weight:700; font-size:12px;
+  text-transform:uppercase; letter-spacing:.02em; padding:4px 8px; }
+.qc .score { font-family:var(--mono); font-weight:700; letter-spacing:-.04em; }
+.qc .me { border-radius:50%; }
+.qc .note { font-size:15px; }
+.qc .rules { list-style:none; padding:0; counter-reset:r; gap:10px; }
+.qc .rules li { counter-increment:r; position:relative; padding-left:36px; font-size:15px; }
+.qc .rules li::before { content:counter(r); position:absolute; left:0; top:-1px; width:24px; height:24px; border-radius:50%; border:var(--line); display:flex;
+  align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:12px; background:#fff; }
+.qc .rules li:last-child::before { background:var(--yellow); }
+/* the question: a white tag with a punched hole */
+.qc .qq { background:#fff; border:var(--line); box-shadow:4px 4px 0 var(--yellow), 4px 4px 0 2px var(--ink); padding:14px 14px 14px 34px; position:relative; text-align:left;
+  letter-spacing:-.025em; font-size:min(5.4vw, 23px); margin:8px 0 4px; }
+.qc .qq::before { content:""; position:absolute; left:11px; top:50%; width:12px; height:12px; margin-top:-6px; border-radius:50%; border:var(--line); background:var(--stone); }
+.qc .qq.left { box-shadow:4px 4px 0 var(--ink); }
+.qc .word { border:3px solid var(--ink); box-shadow:5px 5px 0 var(--ink); text-transform:uppercase; letter-spacing:-.05em; }
+.qc .pimg { border:var(--line); background:#fff; box-shadow:4px 4px 0 var(--ink); }
+.lockmsg { font-family:var(--mono); font-weight:400; font-size:12.5px; text-transform:uppercase; letter-spacing:.01em; line-height:1.4; border:var(--line); }
+
+/* answers: shelf tags, yellow letter block; pressed flat when tapped */
+.pans { gap:10px; }
+.pa { background:#fff; border:var(--line); box-shadow:3px 3px 0 var(--ink); letter-spacing:-.02em; font-weight:800;
+  transition:transform .25s var(--ease), box-shadow .25s var(--ease), background-color .18s, opacity .3s; }
+.pa:active { transform:translate(3px, 3px); box-shadow:0 0 0 var(--ink); transition-duration:.05s; }
+.pa .l { background:var(--yellow); color:var(--ink); border:var(--line); font-family:var(--sans); }
+.pans.n2 .pa { text-transform:uppercase; letter-spacing:-.04em; }
+.pa.picked { background:var(--blue); color:#fff; animation:pick .45s var(--snap); }
+.pa.picked .l { background:var(--yellow); color:var(--ink); }
+@keyframes pick { 0% { transform:translate(3px, 3px); box-shadow:0 0 0 var(--ink); } 100% { transform:none; } }
+/* reveal: the right one is a yellow tag with a check; yours, if wrong, gets a red cross and shakes */
+.pa.ok { background:var(--yellow) !important; color:var(--ink) !important; opacity:1; box-shadow:5px 5px 0 var(--ink); }
+.pa.ok mark { background:none !important; }
+.pa.ok .l { background:var(--ink) !important; color:var(--yellow) !important; }
+.pa.ok::after, .pans:has(.ok) .pa.off.picked::after { content:""; position:absolute; right:-9px; top:-11px; width:34px; height:34px; background:var(--i-check) center / contain no-repeat; }
+.pa.off { opacity:.4; box-shadow:none; }
+.pans:has(.ok) .pa.off span:not(.l) { text-decoration:line-through; text-decoration-thickness:2px; }
+.pans:has(.ok) .pa.off.picked { opacity:1; background:var(--ink); color:#fff; }
+.pans:has(.ok) .pa.off.picked::after { background-image:var(--i-cross); }
+.pa.gone { box-shadow:none; border-style:dashed; }
+
+/* points after an answer */
+.res { border:var(--line); box-shadow:5px 5px 0 var(--ink); position:relative; padding:18px 18px 16px; }
+.res .pts { font-family:var(--mono); font-weight:700; letter-spacing:-.06em; font-size:56px; }
+.res p:not(.pts) { text-transform:uppercase; letter-spacing:-.02em; font-weight:800; }
+.res.ok::after, .res.no::after { content:""; position:absolute; right:14px; top:50%; width:64px; height:64px; margin-top:-32px; background:var(--i-check) center / contain no-repeat; }
+.res.no::after { background-image:var(--i-cross); }
+.res.none { background:var(--grey); }
+
+/* powers: catalogue cards */
+.pgrid { gap:10px; }
+.pbtn { background:#fff; border:var(--line); box-shadow:3px 3px 0 var(--ink); position:relative; padding:14px 12px 12px; transition:transform .25s var(--ease), box-shadow .25s var(--ease), background-color .15s; }
+.pbtn::before { content:""; position:absolute; left:-2px; right:-2px; top:-2px; height:6px; background:var(--ink); }
+.pbtn.bonus::before { background:var(--blue); }
+.pbtn.obstacle::before { background:var(--red); }
+.pbtn b { text-transform:uppercase; letter-spacing:-.035em; font-size:17px; line-height:1.05; }
+.pbtn.bonus b { color:var(--blue); }
+.pbtn.obstacle b { color:var(--red); }
+.pbtn span { font-size:12.5px; }
+.pbtn em { font-family:var(--mono); font-weight:700; font-size:11px; }
+.pbtn:active { transform:translate(3px, 3px); box-shadow:none; background:var(--yellow); }
+.pbtn.special { background:var(--ink); color:#fff; }
+.pbtn.special::before { background:var(--yellow); }
+.pbtn.skip { background:#fff; color:var(--ink); }
+.pbtn.skip::before { display:none; }
+.pbtn.skip b { color:var(--ink); }
+.tlist { gap:8px; }
+.tlist button { background:#fff; border:var(--line); box-shadow:3px 3px 0 var(--ink); text-transform:uppercase; letter-spacing:-.03em; transition:transform .06s, box-shadow .06s; }
+.tlist button:active { transform:translate(3px, 3px); box-shadow:none; }
+.tlist button b { font-family:var(--mono); font-size:12px; background:var(--red); color:#fff; padding:3px 6px; }
+
+/* order + grid editor */
+.oitem { background:#fff; border:var(--line); }
+.oitem .n { font-family:var(--mono); color:var(--ink); }
+.oitem .mv button { background:var(--ink); border:0; font-family:var(--mono); }
+.oitem .mv button:active { background:var(--yellow); color:var(--ink); }
+.oitem.drag { background:var(--yellow); box-shadow:5px 5px 0 var(--ink); }
+.oitem.ok, .glist .oitem.mine { background:var(--yellow); }
+.oitem img { border:1px solid rgba(17,17,17,.15); }
+.oitem .yr { font-family:var(--mono); }
+.glist .gname { text-transform:uppercase; letter-spacing:-.03em; }
+.glist .gname em { font-family:var(--mono); font-weight:400; text-transform:none; }
+.glist .oitem img { border:0; }
+.peek { border:var(--line); }
+.peek li { font-family:var(--mono); font-size:13px; }
+.fxmsg { border:var(--line); font-family:var(--mono); text-transform:uppercase; font-size:12.5px; }
+
+/* ---------- motion: only when a new moment arrives (quiz-player.js marks it with .enter) ---------- */
+#quiz.enter .qc > *, #quiz.enter .center > * { animation:pRise .55s var(--ease) both; }
+#quiz.enter .qc > :nth-child(2), #quiz.enter .center > :nth-child(2) { animation-delay:.06s; }
+#quiz.enter .qc > :nth-child(3), #quiz.enter .center > :nth-child(3) { animation-delay:.12s; }
+#quiz.enter .qc > :nth-child(4), #quiz.enter .center > :nth-child(4) { animation-delay:.18s; }
+#quiz.enter .qc > :nth-child(n+5), #quiz.enter .center > :nth-child(n+5) { animation-delay:.24s; }
+#quiz.enter .pans li { animation:pRise .5s var(--ease) both; }
+#quiz.enter .pans li:nth-child(2) { animation-delay:.05s; } #quiz.enter .pans li:nth-child(3) { animation-delay:.1s; }
+#quiz.enter .pans li:nth-child(4) { animation-delay:.15s; } #quiz.enter .pans li:nth-child(5) { animation-delay:.2s; }
+#quiz.enter .pgrid > * { animation:pRise .5s var(--ease) both; }
+#quiz.enter .pgrid > :nth-child(2) { animation-delay:.05s; } #quiz.enter .pgrid > :nth-child(3) { animation-delay:.1s; } #quiz.enter .pgrid > :nth-child(4) { animation-delay:.15s; }
+#quiz.enter .res { animation:resIn .6s var(--snap) both; }
+#quiz.enter .res.no { animation:resIn .5s var(--snap) both, shakeX .45s .45s both; }
+#quiz.enter .res.ok::after, #quiz.enter .res.no::after, #quiz.enter .pa.ok::after, #quiz.enter .pans:has(.ok) .pa.off.picked::after { animation:stampP .5s .3s var(--snap) both; }
+#quiz.enter .pans:has(.ok) .pa.off.picked { animation:shakeX .45s .35s both; }
+#quiz.enter .huge.yl { animation:stampP .6s .1s var(--snap) both; }
+/* the curtain: a thin yellow sweep across the screen when the moment changes */
+#quiz::after { content:""; position:fixed; inset:0; background:var(--yellow); pointer-events:none; z-index:30; transform:scaleY(0); }
+#quiz.enter::after { animation:curtain .5s cubic-bezier(.77, 0, .18, 1) both; }
+@keyframes curtain { 0% { transform:scaleY(1); transform-origin:top; } 100% { transform:scaleY(0); transform-origin:top; } }
+@keyframes pRise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+@keyframes resIn { from { opacity:0; transform:scale(.85) rotate(-2deg); } to { opacity:1; transform:none; } }
+@keyframes stampP { 0% { opacity:0; transform:scale(2) rotate(-20deg); } 100% { opacity:1; transform:none; } }
+@keyframes shakeX { 0%, 100% { translate:0; } 20% { translate:-8px 0; } 40% { translate:7px 0; } 60% { translate:-4px 0; } 80% { translate:3px 0; } }
+
+@media (max-width:370px) {
+  .brand { font-size:26px; }
+  .qc .huge { font-size:min(11vw, 40px); }
+  .pa { font-size:16px; padding:12px; gap:10px; }
+  .pa .l { width:30px; height:30px; }
+  .pbtn b { font-size:15px; }
+  #quiz .qh .sc { font-size:16px; }
+  .res .pts { font-size:46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #quiz::after { display:none; }
+  #quiz.enter * , #drank, .pa.picked { animation:none !important; }
+}

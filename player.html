@@ -4,16 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0058A3">
+<meta name="theme-color" content="#0058AB">
 <title>IKEA QUIZ · Giocatore</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="quiz-player.css">
 <style>
   :root { --blue:#0058A3; --yellow:#FFDB00; --ink:#111; --floor:#FFFFFF; --stone:#F2F2F2; --grey:#5C5C5C; --red:#C4161C; }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; background:var(--floor); color:var(--ink); overflow:hidden; overscroll-behavior:none;
-    font-family:"Noto Sans", system-ui, sans-serif; -webkit-user-select:none; user-select:none; touch-action:none;
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif; -webkit-user-select:none; user-select:none; touch-action:none;
     -webkit-touch-callout:none; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   #zoomfix { position:fixed; left:50%; top:8px; transform:translateX(-50%); z-index:60; display:none; background:var(--red); color:#fff; font-weight:900; padding:10px 14px; font-size:14px; }
   #zoomfix.on { display:block; }
@@ -108,6 +107,7 @@
   h1.brand { margin:0; }
   #join .intro { margin:-4px 0 6px; font-size:18px; line-height:1.4; color:var(--ink); }
 </style>
+<link rel="stylesheet" href="theme-phone.css">
 </head>
 <body>
 
@@ -188,6 +188,7 @@
 
 
 <button id="zoomfix">Lo schermo è zoomato: tocca qui</button>
+<script src="ikea-ui.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/three.min.js"></script>
 <script src="tracks.js"></script>
@@ -602,34 +603,45 @@ function drawHud(now, cw, ch, mine) {
   if (!mine || !state) return;
   ctx.textBaseline = 'middle';
   if (!sab) {
-    // position (big, Mario Kart style) top-right
+    // position: a yellow price tag top-right (Space Mono), lap + time on a white shelf label
     const n = state.o.length, place = state.o.indexOf(me.id) + 1;
-    ctx.textAlign = 'right'; ctx.font = '900 64px "Noto Sans", Verdana, sans-serif';
-    ctx.lineWidth = 8; ctx.strokeStyle = C.blue; ctx.lineJoin = 'round';
-    ctx.strokeText(place + '°', cw - 18, 50); ctx.fillStyle = C.yellow; ctx.fillText(place + '°', cw - 18, 50);
-    ctx.font = '800 15px Verdana, sans-serif'; ctx.fillStyle = C.ink; ctx.fillText('su ' + n, cw - 20, 92);
+    const HM = '"Space Mono", ui-monospace, monospace';
+    ctx.font = `700 46px ${HM}`; const pw = Math.max(86, ctx.measureText(place + '°').width + 24);
+    const px = cw - 14 - pw;
+    ctx.fillStyle = C.ink; ctx.fillRect(px + 4, 16, pw, 74);
+    ctx.fillStyle = place === 1 ? C.yellow : '#fff'; ctx.fillRect(px, 12, pw, 74);
+    ctx.lineWidth = 2; ctx.strokeStyle = C.ink; ctx.strokeRect(px + 1, 13, pw - 2, 72);
+    ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(place + '°', px + pw / 2, 44);
+    ctx.font = `700 11px ${HM}`; ctx.fillText('SU ' + n, px + pw / 2, 74);
+    if (place === 1) { ctx.fillStyle = C.ink; ctx.fillRect(px - 6, 4, 70, 16); ctx.fillStyle = C.yellow; ctx.font = `700 10px ${HM}`; ctx.fillText('1° POSTO', px + 29, 12.5); }
     // lap + time
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255,255,255,.9)'; R.rr(ctx, 14, 12, 190, 40, 8); ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = '900 18px Verdana, sans-serif';
-    ctx.fillText(`${race.track.open ? 'A → B' : `GIRO ${Math.min(race.laps, mine.l + 1)}/${race.laps}`}  ${R.fmtTime(Math.max(0, state.t))}`, 26, 33);
+    ctx.font = `700 15px ${HM}`;
+    const lt = `${race.track.open ? 'A → B' : `GIRO ${Math.min(race.laps, mine.l + 1)}/${race.laps}`}  ${R.fmtTime(Math.max(0, state.t))}`;
+    const lw = ctx.measureText(lt).width + 24;
+    ctx.fillStyle = C.ink; ctx.fillRect(17, 15, lw, 36);
+    ctx.fillStyle = '#fff'; ctx.fillRect(14, 12, lw, 36); ctx.strokeRect(15, 13, lw - 2, 34);
+    ctx.fillStyle = C.ink; ctx.fillText(lt, 26, 31);
     // minimap
-    drawMinimap(cw - 132, 120, 120, now);
-    if (mine.j && !(mine.f & 1024)) { ctx.textAlign = 'center'; ctx.font = '900 26px Verdana, sans-serif'; ctx.lineWidth = 6; ctx.strokeStyle = '#fff';
+    drawMinimap(cw - 132, 110, 120, now);
+    if (mine.j && !(mine.f & 1024)) { ctx.textAlign = 'center'; ctx.font = '900 26px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.lineWidth = 6; ctx.strokeStyle = '#fff';
       ctx.strokeText('TOCCA! TRICK', cw / 2, ch * 0.22); ctx.fillStyle = '#FF7A00'; ctx.fillText('TOCCA! TRICK', cw / 2, ch * 0.22); }
-    if (mine.f & 4) { ctx.textAlign = 'center'; ctx.fillStyle = '#006AA7'; ctx.font = '900 18px Verdana, sans-serif'; ctx.fillText('RALLENTATO!', cw / 2, 70); }
-    if (mine.f & 16) { ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = '900 18px Verdana, sans-serif'; ctx.fillText('HOT DOG: INVINCIBILE', cw / 2, 70); }
+    if (mine.f & 4) { ctx.textAlign = 'center'; ctx.fillStyle = '#006AA7'; ctx.font = '900 18px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.fillText('RALLENTATO!', cw / 2, 70); }
+    if (mine.f & 16) { ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = '900 18px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.fillText('HOT DOG: INVINCIBILE', cw / 2, 70); }
   } else {
-    ctx.fillStyle = C.yellow; ctx.fillRect(0, 0, cw, 40);
-    ctx.fillStyle = C.blue; ctx.font = '900 17px Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = C.yellow; ctx.fillRect(0, 0, cw, 40); ctx.fillStyle = C.ink; ctx.fillRect(0, 40, cw, 2);
+    ctx.fillStyle = C.ink; ctx.font = '900 17px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(sab.left > 0 ? 'SABOTAGGIO · scegli qui sotto' : 'LANCI FINITI · guarda la gara', cw / 2, 21);
   }
   if (msg && now < msg.until) {
-    ctx.font = '900 30px Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.font = '800 26px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center';
     const w = Math.max(ctx.measureText(msg.text).width, msg.sub ? 220 : 0) + 40, y = ch * 0.3;
-    ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillRect(cw / 2 - w / 2, y - 30, w, msg.sub ? 84 : 60);
-    ctx.fillStyle = C.blue; ctx.fillText(msg.text, cw / 2, y);
-    if (msg.sub) { ctx.font = '800 15px Verdana, sans-serif'; ctx.fillStyle = C.ink; ctx.fillText(msg.sub, cw / 2, y + 36); }
+    const mh = msg.sub ? 84 : 60;
+    ctx.fillStyle = C.ink; ctx.fillRect(cw / 2 - w / 2 + 5, y - 25, w, mh);
+    ctx.fillStyle = C.yellow; ctx.fillRect(cw / 2 - w / 2, y - 30, w, mh);
+    ctx.lineWidth = 2; ctx.strokeStyle = C.ink; ctx.strokeRect(cw / 2 - w / 2 + 1, y - 29, w - 2, mh - 2);
+    ctx.fillStyle = C.ink; ctx.fillText(msg.text, cw / 2, y);
+    if (msg.sub) { ctx.font = '800 15px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.fillStyle = C.ink; ctx.fillText(msg.sub, cw / 2, y + 36); }
   }
   if (now < flashUntil && Math.floor(now / 140) % 2) { ctx.fillStyle = 'rgba(0,106,167,.25)'; ctx.fillRect(0, 0, cw, ch); }
 }

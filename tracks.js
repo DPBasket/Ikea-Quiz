@@ -129,7 +129,7 @@
     {
       // extra track for the tie-break: from A to B (not a loop), with bridges and a level crossing.
       // Not in the evening's plan: the host starts it only when the final ranking ends in a tie.
-      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, scale: 3.35, desc: 'Da A a B · due ponti e un incrocio',
+      id: 'spareggio', name: 'SPAREGGIO', extra: true, open: true, laps: 1, scale: 3.35, desc: 'Da A a B · due ponti e un soppalco',
       width: 170, radius: 70, grip: 9, speed: 1, start: 'PARTENZA', finish: 'ARRIVO', signature: 'forklift',
       events: ['forklift', 'cart', 'cleaning', 'blackout'],
       rows: [.07, .22, .5, .69, .8],
@@ -137,7 +137,7 @@
       pts: [[110,900,0,0],[640,900,0,0],[860,720,0,0],[860,300,0,0],[700,120,0,0],[230,120,0,0],[110,250,0,0],[200,420,0,0],
             [420,420,0,0],[640,420,0,1],[1080,420,0,1],[1300,420,0,0],[1490,300,0,0],[1490,120,0,0],[1360,120,0,0],[1360,300,0,0],[1220,300,0,0],[1220,120,0,0],[1100,120,0,0],[1000,260,0,0],
             [1060,560,0,0],[1490,560,0,0],[1490,740,0,0],[1180,740,0,0],[1180,930,0,0],[1000,930,0,0],[760,790,0,1],[560,680,0,1],
-            [400,680,0,0],[300,600,0,0],[300,420,0,0],[300,260,0,0],[640,260,0,0]],
+            [400,680,0,1],[300,600,0,1],[300,420,0,1],[300,250,0,0],[640,250,0,0]],
       zones: [
         { a: 0,   b: .2,  name: 'PARCHEGGIO',   tint: '#DDE3E8', wall: 'counter', color: '#0058A3', deco: ['cart', 'box', 'pallet'] },
         { a: .2,  b: .42, name: 'SOPPALCO',     tint: '#E6DDC8', wall: 'room', color: '#FFFFFF', deco: ['sofa', 'lamp', 'shelf'] },

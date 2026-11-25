@@ -101,6 +101,23 @@
     return `<details class="peek" open><summary>La classifica di adesso (la vedi solo tu)</summary><ol>${v.me.peek.map(p => `<li class="${p.me ? 'you' : ''}"><span>${p.rank}. ${esc(p.name)}</span><b>${p.score}</b></li>`).join('')}</ol></details>`;
   }
   const txt = t => esc(t);
+  /* Sback: some letters of each answer are eaten (always the same ones for this question).
+   * 1 Sback = 1/4 of the letters, 2 = 2/5, 3 or more = 3/6 (never more). */
+  const stackOf = p => (v.me.effects || []).filter(e => e.power === p && !e.blocked).length;
+  const power = n => n ? 1 + 0.5 * (n - 1) : 0;
+  function gnamText(t, idx) {
+    const n = stackOf('GNAM');
+    if (!n || v.stage !== 'answering' || v.me.answer != null) return esc(t);
+    const gone = n === 1 ? 1 / 4 : n === 2 ? 2 / 5 : 3 / 6;
+    let h = 2166136261 ^ (v.stepIndex * 131 + idx * 17), out = '', kept = 0;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      h = Math.imul(h ^ c.charCodeAt(0) ^ i, 16777619) >>> 0;
+      if (!/\p{L}|\p{N}/u.test(c)) { out += c; continue; }
+      if ((h % 1000) / 1000 >= gone || (kept === 0 && i === t.length - 1)) { out += c; kept++; }
+    }
+    return esc(out.replace(/ {2,}/g, ' '));
+  }
   function questionHtml(small) {
     const q = v.question;
     if (q.word) return `<p class="note">${txt(q.q)}</p><h1 class="word">${txt(q.word)}</h1>`;
@@ -112,7 +129,7 @@
       const gone = (v.me.removed || []).find(x => x.i === i);
       if (gone) return `<li><div class="pa gone">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${gone.why === 'via' ? `Tolta da ${esc(gone.from || '?')}` : 'Tolta: era sbagliata'}</span></div></li>`;
       const cls = mine == null ? '' : mine === i ? 'picked' : 'off';
-      return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${txt(a)}</span></button></li>`;
+      return `<li><button class="pa ${cls}" data-a="${i}">${n === 2 ? '' : `<span class="l">${L[i]}</span>`}<span>${gnamText(a, i)}</span>${stackOf('GNAM') && v.stage === 'answering' && v.me.answer == null ? '<i class="bite"></i><i class="bite b2"></i>' : ''}</button></li>`;
     }).join('')}</ol>
     ${mine != null ? `<p class="lockmsg">Risposta inviata. Non si può più cambiare.</p>` : ''}`;
   }
@@ -268,9 +285,9 @@
     vib([200, 60, 200]);
     setTimeout(() => { const el = $('faaah'); if (el) el.remove(); then(); }, 2600);
   }
-  function meatballs() {
+  function meatballs(count) {
     if (fx.meatOn) return; fx.meatOn = true;
-    const balls = [...Array(10).keys()].map(i => `<i style="--x:${(i * 37) % 90}vw;--y:${(i * 53) % 80 + 8}vh;--d:${3 + (i % 4) * 1.1}s;--dl:${-(i * .7)}s;--s:${60 + (i % 3) * 26}px"></i>`).join('');
+    const balls = [...Array(count || 10).keys()].map(i => `<i style="--x:${(i * 37) % 90}vw;--y:${(i * 53) % 80 + 8}vh;--d:${3 + (i % 4) * 1.1}s;--dl:${-(i * .7)}s;--s:${60 + (i % 3) * 26}px"></i>`).join('');
     layer().insertAdjacentHTML('beforeend', `<div class="fx-meat" id="meat">${balls}</div>`);
   }
 
@@ -279,14 +296,16 @@
     const qc = $('qc');
     if (!qc || v.stage !== 'answering') { if (v && v.stage !== 'answering' && v.stage !== 'wheel') clearLayer(); return; }   // the wheel's rick roll must survive repaints
     const list = (v.me.effects || []);
-    const on = p => list.find(e => e.power === p && !e.blocked && !e.dup);     // the same obstacle twice counts once
+    const on = p => list.find(e => e.power === p && !e.blocked);
+    // obstacles add up: every extra copy of the same one counts +0.5 (2 = ×1.5, 3 = ×2)
     if (fx.key !== v.stepIndex) {
       fx.key = v.stepIndex; fx.shown = false; fx.msgUntil = 0; clearLayer();
-      fx.boxesUntil = on('SCATOLE') ? performance.now() + 4000 : 0;
-      fx.faaah = !!on('FAAAH');
+      fx.boxesUntil = on('SCATOLE') ? performance.now() + 8000 * power(stackOf('SCATOLE')) : 0;      // 8 s, 12 s, 16 s
+      fx.faaah = on('FAAAH') ? Math.round(2 * power(stackOf('FAAAH'))) : 0;                          // taps eaten: 2, 3, 4
+      fx.boxesFell = false;
       const rr = on('RICKROLL');
       if (rr) { const f = v.standings.find(x => x.id === rr.from); fx.rickFrom = f ? f.name : '?'; rickroll(v.rickrollMs || 10000); }
-      if (on('POLPETTE')) meatballs();
+      if (on('POLPETTE')) meatballs(Math.round(10 * power(stackOf('POLPETTE'))));
     }
     if (v.me.answer != null) { clearLayer(); return; }
     const names = list.filter(e => !e.self).map(e => {
@@ -303,8 +322,10 @@
         const r = pans.getBoundingClientRect(), qr = qc.getBoundingClientRect();
         for (let i = 0; i < 6; i++) {
           const w = r.width / 2, h = r.height / 3;
-          qc.insertAdjacentHTML('beforeend', `<div class="cbox" style="left:${r.left - qr.left + (i % 2) * w}px;top:${r.top - qr.top + qc.scrollTop + Math.floor(i / 2) * h}px;width:${w}px;height:${h}px">DAJLIEN</div>`);
+          // the boxes fall from the top the first time, then just stay there
+          qc.insertAdjacentHTML('beforeend', `<div class="cbox ${fx.boxesFell ? '' : 'fall'}" style="--dl:${(i * 0.11).toFixed(2)}s;left:${r.left - qr.left + (i % 2) * w}px;top:${r.top - qr.top + qc.scrollTop + Math.floor(i / 2) * h}px;width:${w}px;height:${h}px">DAJLIEN</div>`);
         }
+        if (!fx.boxesFell) { fx.boxesFell = true; vib([30, 60, 30, 60, 30]); }
         setTimeout(() => { if (fx.key === v.stepIndex) paint(true); }, fx.boxesUntil - performance.now() + 30);
       }
     }
@@ -312,7 +333,7 @@
   // the answer tap goes through the obstacles first (rick roll blocks it, faaah eats the first one)
   function tryAnswer(a) {
     if (performance.now() < (fx.blockUntil || 0) && fx.key === v.stepIndex) { vib(40); return false; }
-    if (fx.faaah && fx.key === v.stepIndex) { fx.faaah = false; faaah(() => {}); return false; }
+    if (fx.faaah > 0 && fx.key === v.stepIndex) { fx.faaah--; faaah(() => {}); return false; }     // faaah again… and again
     return true;
   }
 
@@ -321,6 +342,7 @@
     const el = $('quiz');
     const keep = $('qc') ? $('qc').scrollTop : 0;
     el.innerHTML = header() + `<div class="qc" id="qc">${body()}</div>`;
+    el.classList.toggle('enter', !force);            // presentation: entrance animations only for a new moment
     if (force) $('qc').scrollTop = keep;
     const r = $('qready'); if (r) r.onclick = () => { socket.emit('quiz_ready'); vib(20); };
     document.querySelectorAll('#quiz .pa[data-a]').forEach(b => b.addEventListener('pointerdown', e => {

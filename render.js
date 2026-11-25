@@ -3,7 +3,7 @@
   'use strict';
   const TR = window.IKEA_TRACKS;
   const W = TR.WORLD.w, H = TR.WORLD.h;
-  const C = { floor: '#F5F5F5', grid: '#ECECEC', track: '#E0E0E0', yellow: '#FFDB00', blue: '#0058A3', ink: '#111111',
+  const C = { floor: '#F5F5F5', grid: '#ECECEC', track: '#E0E0E0', yellow: '#FFDA1A', blue: '#0058AB', ink: '#111111',
     wood: '#D9B98B', birch: '#EAD7B5', card: '#C8A06A', red: '#E4002B', green: '#00A651', white: '#FFFFFF' };
   const TAU = Math.PI * 2;
 
@@ -77,7 +77,7 @@
   }
 
   function drawLabel(ctx, x, y, text, size) {
-    ctx.font = `900 ${size}px "Noto Sans", Verdana, Arial, sans-serif`;
+    ctx.font = `900 ${size}px "Plus Jakarta Sans", Verdana, sans-serif`;
     const w = ctx.measureText(text).width + size * 0.9;
     ctx.fillStyle = C.yellow; ctx.fillRect(x - w / 2, y - size * 0.75, w, size * 1.5);
     ctx.fillStyle = C.blue; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -329,7 +329,7 @@
     ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t / 400) * 0.25);
     const s = 1 + Math.sin(t / 250) * 0.06; ctx.scale(s, s);
     ctx.fillStyle = C.blue; rr(ctx, -9, -9, 18, 18, 3); ctx.fill();
-    ctx.fillStyle = C.yellow; ctx.font = '900 14px Verdana, Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = C.yellow; ctx.font = '900 14px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('?', 0, 1);
     ctx.restore();
   }
@@ -361,7 +361,7 @@
         if (e.w) {
           ctx.strokeStyle = Math.floor(t / 150) % 2 ? C.red : C.yellow; ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
           ctx.strokeRect(-12, -len / 2 - 4, 24, len + 8); ctx.setLineDash([]);
-          ctx.fillStyle = C.red; ctx.font = '900 18px Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 0);
+          ctx.fillStyle = C.red; ctx.font = '900 18px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 0);
         } else {
           ctx.fillStyle = C.birch; ctx.fillRect(-11, -len / 2 - 4, 22, len + 8);
           ctx.strokeStyle = '#A88B5E'; ctx.lineWidth = 2;
@@ -383,7 +383,7 @@
         const bob = Math.sin(t / 120) * 4;
         ctx.translate(0, -30 + bob);
         drawIcon(ctx, 'icecream', 0, 0, 1.1);
-        ctx.fillStyle = C.ink; ctx.font = '900 11px Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CATCH!', 0, -18);
+        ctx.fillStyle = C.ink; ctx.font = '900 11px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CATCH!', 0, -18);
         break;
       }
     }
@@ -464,7 +464,7 @@
       if (ghost && !isMe && !opt.host) continue;              // FRAKTA: invisible to other players
       drawCar(ctx, d.x, d.y, d.h, info.color, { alpha: ghost ? (isMe ? 0.4 : 0.22) : 1, invi: p.f & 16, jump: p.f & 64, t, me: isMe });
       if (opt.names) {
-        ctx.font = '800 11px Verdana, Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '800 11px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         const w = ctx.measureText(info.name).width + 8;
         ctx.fillStyle = 'rgba(17,17,17,.75)'; ctx.fillRect(d.x - w / 2, d.y - 30, w, 14);
         ctx.fillStyle = C.white; ctx.fillText(info.name, d.x, d.y - 23);
@@ -531,7 +531,7 @@
     ctx.fillStyle = '#004F93'; ctx.beginPath(); ctx.moveTo(34, 14.5); ctx.lineTo(66, 14.5); ctx.quadraticCurveTo(74, 18, 77, 23); ctx.quadraticCurveTo(50, 26, 23, 23); ctx.quadraticCurveTo(26, 18, 34, 14.5); ctx.fill();   // drooping bucket-hat brim
     ctx.fillStyle = '#0058A3'; ctx.beginPath(); ctx.moveTo(35, 18); ctx.lineTo(38, 4); ctx.quadraticCurveTo(50, -1, 62, 4); ctx.lineTo(65, 18); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#FFDB00'; ctx.beginPath(); ctx.moveTo(36.2, 13); ctx.lineTo(63.8, 13); ctx.lineTo(64.6, 16.6); ctx.lineTo(35.4, 16.6); ctx.closePath(); ctx.fill();   // band
-    ctx.fillStyle = '#0058A3'; ctx.font = '800 3.4px "Noto Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('IKEA', 50, 14.9);
+    ctx.fillStyle = '#0058A3'; ctx.font = '800 3.4px "Plus Jakarta Sans", Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('IKEA', 50, 14.9);
     // face
     ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(44, 27, 5, 0, TAU); ctx.arc(57, 27, 5, 0, TAU); ctx.fill();
     ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(45, 28, 2.4, 0, TAU); ctx.arc(58, 28, 2.4, 0, TAU); ctx.fill();
@@ -844,18 +844,37 @@
   }
   function signMesh(text, w, h, bg, fg) {
     const tex = canvasTex(512, Math.round(512 * h / w), (x, cw, ch) => {
-      x.fillStyle = bg || '#FFDB00'; x.fillRect(0, 0, cw, ch);
-      x.fillStyle = fg || '#0058A3'; x.font = `900 ${Math.round(ch * 0.62)}px "Noto Sans", Verdana, Arial, sans-serif`;
-      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, cw / 2, ch / 2 + 2, cw - 20);
+      x.fillStyle = bg || '#FFDA1A'; x.fillRect(0, 0, cw, ch); x.lineWidth = Math.max(6, ch * 0.06); x.strokeStyle = '#111111'; x.strokeRect(x.lineWidth / 2, x.lineWidth / 2, cw - x.lineWidth, ch - x.lineWidth);
+      x.fillStyle = fg || '#0058AB'; x.font = `800 ${Math.round(ch * 0.6)}px "Plus Jakarta Sans", Verdana, sans-serif`;
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(text).toUpperCase(), cw / 2, ch / 2 + 2, cw - 30);
+    });
+    return new T3.Mesh(new T3.PlaneGeometry(w, h), new T3.MeshBasicMaterial({ map: tex, side: T3.DoubleSide }));
+  }
+  // warehouse aisle sign: black block with the aisle number, zone name, shelf letters in mono (self-service hall style)
+  function aisleSign(n, text, w, h) {
+    const H = 192, Wc = Math.round(H * w / h);
+    const tex = canvasTex(Wc, H, (x, cw, ch) => {
+      x.fillStyle = '#FFDA1A'; x.fillRect(0, 0, cw, ch);
+      x.fillStyle = '#111111'; x.fillRect(0, 0, ch, ch);
+      x.lineWidth = 10; x.strokeStyle = '#111111'; x.strokeRect(5, 5, cw - 10, ch - 10);
+      x.fillStyle = '#FFDA1A'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = '700 24px "Space Mono", ui-monospace, monospace'; x.fillText('CORSIA', ch / 2, 34);
+      x.font = '700 104px "Space Mono", ui-monospace, monospace'; x.fillText(String(n).padStart(2, '0'), ch / 2, ch / 2 + 22);
+      x.fillStyle = '#111111'; x.textAlign = 'left';
+      x.font = '800 70px "Plus Jakarta Sans", Verdana, sans-serif'; x.fillText(String(text).toUpperCase(), ch + 26, ch * 0.4, cw - ch - 50);
+      const L = 'ABCDEFGH'[(n - 1) % 8];
+      x.font = '700 28px "Space Mono", ui-monospace, monospace'; x.fillText(`SCAFFALE ${L}  ·  ${L}1–${L}${(n * 7) % 30 + 12}`, ch + 28, ch * 0.78, cw - ch - 50);
     });
     return new T3.Mesh(new T3.PlaneGeometry(w, h), new T3.MeshBasicMaterial({ map: tex, side: T3.DoubleSide }));
   }
   function labelSprite(text, color) {
     const tex = canvasTex(256, 64, (x, w, h) => {
-      x.fillStyle = 'rgba(17,17,17,.8)'; x.fillRect(0, 8, w, 48);
-      x.fillStyle = color; x.fillRect(0, 8, 12, 48);
-      x.fillStyle = '#fff'; x.font = '900 32px "Noto Sans", Verdana, Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillText(text, w / 2 + 6, 34, w - 24);
+      x.fillStyle = '#111111'; x.fillRect(4, 12, w - 4, 48);
+      x.fillStyle = '#FFFFFF'; x.fillRect(0, 8, w - 4, 48);
+      x.lineWidth = 4; x.strokeStyle = '#111111'; x.strokeRect(2, 10, w - 8, 44);
+      x.fillStyle = color; x.fillRect(4, 12, 14, 40);
+      x.fillStyle = '#111111'; x.font = '800 30px "Plus Jakarta Sans", Verdana, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(String(text).toUpperCase(), w / 2 + 6, 33, w - 34);
     });
     const s = new T3.Sprite(new T3.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
     s.scale.set(64, 16, 1); s.renderOrder = 10;
@@ -957,9 +976,10 @@
     if (t.closed) gate(0, t.finish);
     else { gate(t.startS, t.start || 'START'); gate(t.finishS, t.finish); }
     // hanging zone signs over the road
-    t.zones.forEach(z => {
+    t.zones.forEach((z, zi) => {
       const pt = TR.pointAt(t.main, (z.a + 0.03) * t.L);
-      const sg = signMesh(z.name, Math.min(pt.w, 40 + z.name.length * 11), 26);
+      const sw = Math.max(110, Math.min(pt.w * 1.15, 70 + z.name.length * 10));
+      const sg = aisleSign(zi + 1, z.name, sw, Math.max(30, sw * 0.24));
       sg.position.set(pt.x, 112 + (pt.z || 0) * TR.BRIDGE_H, pt.y); sg.rotation.y = -pt.ang - Math.PI / 2;
       const wire = new T3.Mesh(new T3.BoxGeometry(1, CEIL - 125, 1), new T3.MeshBasicMaterial({ color: '#333' }));
       wire.position.set(pt.x, 125 + (CEIL - 125) / 2, pt.y);
@@ -1006,7 +1026,7 @@
     return canvasTex(128, 128, (x, w, h) => {
       x.fillStyle = '#0058A3'; x.fillRect(0, 0, w, h);
       x.strokeStyle = '#FFDB00'; x.lineWidth = 8; x.strokeRect(6, 6, w - 12, h - 12);
-      x.fillStyle = '#FFDB00'; x.font = '900 90px Verdana, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('?', w / 2, h / 2 + 6);
+      x.fillStyle = '#FFDB00'; x.font = '900 90px "Plus Jakarta Sans", Verdana, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('?', w / 2, h / 2 + 6);
     });
   }
   class Pool {
@@ -1212,6 +1232,28 @@
           s.emit(bx, 14, bz, { n: 1, colors: ['#BDBDBD', '#FFFFFF'], dir: back, spread: 0.8, speed: 40, up: 30, life: 0.9, gravity: -20 });
         }
       }
+      // the yellow "1° POSTO" tag floats over whoever leads (on the big screen, where names are shown)
+      if (o.names && st.o && st.o.length > 1) {
+        if (!v.leadTag) {
+          const tex = canvasTex(256, 80, (x, w, h) => {
+            x.fillStyle = '#111111'; x.fillRect(8, 8, w - 8, h - 8);
+            x.fillStyle = '#FFDA1A'; x.fillRect(0, 0, w - 8, h - 8);
+            x.lineWidth = 6; x.strokeStyle = '#111111'; x.strokeRect(3, 3, w - 14, h - 14);
+            x.fillStyle = '#111111'; x.font = '700 40px "Space Mono", ui-monospace, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
+            x.fillText('1° POSTO', (w - 8) / 2, (h - 8) / 2 + 2);
+          });
+          v.leadTag = new T3.Sprite(new T3.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+          v.leadTag.renderOrder = 11;
+        }
+        const lead = v.karts[st.o[0]], lp = st.p.find(q => q.i === st.o[0]);
+        if (lead && lead.root.visible && lp && !lp.fin) {
+          if (v.leadTag.parent !== lead.root) { lead.root.add(v.leadTag); v.leadT0 = now; }
+          const big = v.mode === 'overview' ? 2.4 : 1, pop = Math.min(1, (now - (v.leadT0 || now)) / 350);
+          const sc = big * (pop < 1 ? 0.6 + 0.4 * (1 - Math.pow(1 - pop, 3)) * 1.1 : 1);
+          v.leadTag.scale.set(52 * sc, 16 * sc, 1); v.leadTag.position.y = 66 * big + Math.sin(now / 260) * 2 * big;
+          v.leadTag.visible = true;
+        } else v.leadTag.visible = false;
+      } else if (v.leadTag) v.leadTag.visible = false;
       // item boxes
       const dummy = new T3.Object3D();
       v.boxMesh.count = st.b.length;
