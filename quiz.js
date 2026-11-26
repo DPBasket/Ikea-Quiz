@@ -507,6 +507,7 @@ function createQuiz(ctx) {
     for (let i = 0; i < n && slots.length; i++) add(slots.splice(Math.floor(Math.random() * slots.length), 1)[0], 'VIAGIUSTA');
     return plan;
   }
+  const FUN = ['GNAM', 'SCATOLE', 'POLPETTE'];   // at least one of these in every offer
   function makeOffers(q) {
     const s = stepObj(), part = DATA.PARTS[s.p];
     const ranked = players().slice().sort((a, b) => (b.score || 0) - (a.score || 0)), n = Math.max(1, ranked.length - 1);
@@ -527,11 +528,17 @@ function createQuiz(ctx) {
         !(d.needsChoices && !(q.type === 'choice' && q.answers.length >= d.needsChoices)) &&
         !(d.weightLow && f === 0)
       ).map(([k, d]) => [k, d.weightLow ? 0.3 + 2 * f : (d.weight || 1)]);
+      const funPool = pool.filter(([k]) => FUN.includes(k));   // Sback, Scatoloni, Polpette that can come out now
       const pick = [];
       while (pick.length < DATA.POWER_OFFER && pool.length) {
         let r = Math.random() * pool.reduce((a, x) => a + x[1], 0), i = 0;
         for (; i < pool.length - 1; i++) { r -= pool[i][1]; if (r < 0) break; }
         pick.push(pool.splice(i, 1)[0][0]);
+      }
+      // always at least one of Sback / Scatoloni / Polpette among the three
+      if (funPool.length && !pick.some(k => FUN.includes(k))) {
+        const k = funPool[Math.floor(Math.random() * funPool.length)][0];
+        if (pick.length >= DATA.POWER_OFFER) pick.splice(Math.floor(Math.random() * pick.length), 1, k); else pick.push(k);
       }
       flow.cur.offers[p.id] = pick;
     }
@@ -546,7 +553,11 @@ function createQuiz(ctx) {
       const p = who[Math.floor(Math.random() * who.length)];
       taken.add(p.id); flow.cur.special[p.id] = k;
       const list = flow.cur.offers[p.id];
-      list.splice(Math.floor(Math.random() * Math.max(1, list.length)), list.length >= DATA.POWER_OFFER ? 1 : 0, k);
+      // the special takes the place of one of the others, never of the only Sback / Scatoloni / Polpette
+      const funIdx = list.map((x, i) => FUN.includes(x) ? i : -1).filter(i => i >= 0);
+      const free = list.map((x, i) => i).filter(i => !(funIdx.length === 1 && funIdx[0] === i));
+      const at = free.length ? free[Math.floor(Math.random() * free.length)] : Math.floor(Math.random() * Math.max(1, list.length));
+      list.splice(at, list.length >= DATA.POWER_OFFER ? 1 : 0, k);
     }
   }
   const canPower = p => !flow.cur || !flow.cur.powerOnly || flow.cur.powerOnly.includes(p.id);

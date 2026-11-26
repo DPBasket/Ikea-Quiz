@@ -116,6 +116,7 @@ I **poteri**: ne escono 3 a caso a testa. Quelli semplici escono spesso, quelli 
 - **Polpette**: polpette IKEA che rotolano sullo schermo dell'avversario.
 - **Scatoloni**: scatoloni che cadono sulle risposte e le coprono per 8 secondi.
 - **Sback** (sbrodolino + snack): sul telefono dell'avversario sparisce un quarto delle lettere delle risposte, con i segni dei morsi sulle caselle.
+- Tra i 3 poteri che ti escono c'è **sempre almeno uno tra Sback, Scatoloni e Polpette** (anche quando arriva un Rick roll o Via la giusta, quello non viene tolto).
 
 **Gli ostacoli si sommano.** Se più persone lanciano lo stesso ostacolo alla stessa vittima, ogni copia in più vale +0,5: con 2 lanci l'effetto è 1,5 volte, con 3 lanci 2 volte.
 
