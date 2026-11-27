@@ -122,7 +122,7 @@ I **poteri**: ne escono 3 a caso a testa. Quelli semplici escono spesso, quelli 
 
 | Ostacolo | 1 lancio | 2 lanci | 3 lanci |
 |---|---|---|---|
-| Polpette | 10 polpette | 15 | 20 |
+| Polpette | 6 polpette (più piccole) | 9 | 12 |
 | Scatoloni | 8 s | 12 s | 16 s |
 | Faaah | 2 tocchi mangiati | 3 | 4 |
 | Sback | 1/4 delle lettere | 2/5 | 3/6 (non di più) |

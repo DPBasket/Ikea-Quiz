@@ -287,7 +287,7 @@
   }
   function meatballs(count) {
     if (fx.meatOn) return; fx.meatOn = true;
-    const balls = [...Array(count || 10).keys()].map(i => `<i style="--x:${(i * 37) % 90}vw;--y:${(i * 53) % 80 + 8}vh;--d:${3 + (i % 4) * 1.1}s;--dl:${-(i * .7)}s;--s:${60 + (i % 3) * 26}px"></i>`).join('');
+    const balls = [...Array(count || 6).keys()].map(i => `<i style="--x:${(i * 37) % 90}vw;--y:${(i * 53) % 80 + 8}vh;--d:${3 + (i % 4) * 1.1}s;--dl:${-(i * .7)}s;--s:${48 + (i % 3) * 18}px"></i>`).join('');
     layer().insertAdjacentHTML('beforeend', `<div class="fx-meat" id="meat">${balls}</div>`);
   }
 
@@ -305,7 +305,7 @@
       fx.boxesFell = false;
       const rr = on('RICKROLL');
       if (rr) { const f = v.standings.find(x => x.id === rr.from); fx.rickFrom = f ? f.name : '?'; rickroll(v.rickrollMs || 10000); }
-      if (on('POLPETTE')) meatballs(Math.round(10 * power(stackOf('POLPETTE'))));
+      if (on('POLPETTE')) meatballs(Math.round(6 * power(stackOf('POLPETTE'))));
     }
     if (v.me.answer != null) { clearLayer(); return; }
     const names = list.filter(e => !e.self).map(e => {
