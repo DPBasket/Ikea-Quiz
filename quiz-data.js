@@ -47,14 +47,14 @@ const PARTS = [
       'Risposta definitiva: chi è giusto e più veloce prende di più'
     ],
     questions: [
-      { type: 'choice', q: 'Come si chiama?', img: 'q-img2.jpg', answers: ['GÅRDSMÄSTARE', 'DIMPA', 'STUK', 'KNAPPER', 'BAXNA'], correct: 0 },
+      { type: 'choice', q: 'Come si chiama?', img: 'q-img2.jpg', answers: ['GÅRDSMÄSTARE', 'FRENDRUP', 'STUK', 'KNAPPER', 'FIKA'], correct: 0 },
       { type: 'choice', q: 'Come si chiama?', img: 'q-img3.jpg', answers: ['BRÄNNBOLL', 'SANDBI', 'EKET', 'JERKER', 'IVAR'], correct: 0 },
-      { type: 'choice', q: 'Come si chiama?', img: 'q-img4.jpg', answers: ['HUVUDROLL', 'REFRÄNG', 'KNÄCKEBRÖD RÅG', 'DRYCK LINGON', 'SJÖRAPPORT'], correct: 0 },
+      { type: 'choice', q: 'Come si chiama?', img: 'q-img4.jpg', answers: ['KÖTTBULLAR', 'IBRAHIMOVIĆ', 'KNÄCKEBRÖD RÅG', 'DRYCK LINGON', 'SJÖRAPPORT'], correct: 0 },
       { type: 'choice', q: 'Come si chiama?', img: 'q-img5.jpg', answers: ['GRÄDDAT', 'HJÄLTEROLL', 'KORVBRÖD', 'LEKSANDS KNÄCKEBRÖD', 'SÅS SENAP & DILL'], correct: 0 },
-      { type: 'choice', q: 'Come si chiama?', img: 'q-img6.jpg', answers: ['TIMMERFLOTTE', 'KAJPLATS', 'MYGGSPRAY', 'PILSKOTT', 'DUBBELKISEL'], correct: 0 },
-      { type: 'choice', q: 'Come si chiama questa pianta?', img: 'q-img7.jpg', answers: ['MONSTERA DELICIOSA', 'SUCCULENT', 'FICUS MICROCARPA', 'FICUS ELASTICA ROBUSTA', 'HEDERA HELIX'], correct: 4 },
-      { type: 'choice', q: 'Come si chiama?', img: 'q-img8.jpg', answers: ['RANTÄNEN', 'TANDÅN', 'BACKSJÖN', 'RÄNNILEN', 'BJÖRKÅN'], correct: 1 },
-      { type: 'choice', q: 'Come si chiama?', img: 'q-img9.jpg', answers: ['STORKLINTA', 'KULLEN', 'GILLERSBERG', 'GILLERSBERGER', 'IKEA PS 2026'], correct: 0 },
+      { type: 'choice', q: 'Come si chiama?', img: 'q-img6.jpg', answers: ['TIMMERFLOTTE', 'DUPLANTIS', 'MYGGSPRAY', 'PILSKOTT', 'DUBBELKISEL'], correct: 0 },
+      { type: 'choice', q: 'Come si chiama questa pianta?', img: 'q-img7.jpg', answers: ['ALBERUS FÖGLIUS', 'SUCCULENT', 'FICUS MICROCARPA', 'FICUS ELASTICA ROBUSTA', 'HEDERA HELIX'], correct: 4 },
+      { type: 'choice', q: 'Come si chiama?', img: 'q-img8.jpg', answers: ['RANTÄNEN', 'TANDÅN', 'BACKSJÖN', 'TRÖJA', 'BJÖRKÅN'], correct: 1 },
+      { type: 'choice', q: 'Come si chiama?', img: 'q-img9.jpg', answers: ['STORKLINTA', 'KÄZZONE', 'GILLERSBERG', 'GILLERSBERGER', 'IKEA PS 2026'], correct: 0 },
       { type: 'choice', q: 'Come si chiama?', img: 'q-img10.jpg', answers: ['MALM', 'LAGKAPTEN / ALEX', 'LAGKAPTEN / ADILS', 'MULLSJÖ', 'HAALAND'], correct: 0 },
       { type: 'choice', q: 'Come si chiama?', img: 'q-img11.jpg', answers: ['FRIHETEN', 'SOLBAKKEN', 'BÅRSLÖV', 'SKÖNABÄCK', 'SALTSJÖBADEN'], correct: 0 }
     ]
